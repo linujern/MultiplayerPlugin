@@ -39,6 +39,7 @@ public class ExtensibleInteractionSystem : ModuleRules
 				"Slate",
 				"SlateCore",
 				"UMG",
+				"DeveloperSettings",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
