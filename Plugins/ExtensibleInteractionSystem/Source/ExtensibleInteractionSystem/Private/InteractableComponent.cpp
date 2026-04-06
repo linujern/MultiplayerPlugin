@@ -84,7 +84,7 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 	OnFocusGained.Broadcast(Interactor);
 
 	if(FocusHandler)
-		FocusHandler->HandleFocusGained(Interactor);
+		FocusHandler->HandleFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
@@ -92,13 +92,13 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 	OnFocusLost.Broadcast(Interactor);
 
 	if(FocusHandler)
-		FocusHandler->HandleFocusLost(Interactor);
+		FocusHandler->HandleFocusLost(this, Interactor);
 }
 
 void UInteractableComponent::UpdateProgress(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	if(ProgressHandler)
-		ProgressHandler->HandleProgressUpdate(Interactor, ProgressPercent);
+		ProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
 }
 
 /*

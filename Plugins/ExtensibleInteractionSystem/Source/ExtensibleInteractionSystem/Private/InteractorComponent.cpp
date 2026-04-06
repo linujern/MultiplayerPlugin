@@ -134,7 +134,7 @@ void UInteractorComponent::AdvanceTimer(float DeltaTime)
 	InteractionProgress += DeltaTime / Ruleset->SecondsToTrigger;
 	InteractionProgress = FMath::Clamp(InteractionProgress, 0.f, 1.f);
 
-	// TODO: call interactionupdate on interactablecomponent
+	CurrentInteractingWith->UpdateProgress(this, InteractionProgress);
 
 	if(InteractionProgress >= 1.f)
 		SubmitInteraction();
@@ -165,9 +165,16 @@ void UInteractorComponent::DrainTimer(float DeltaTime)
 
 void UInteractorComponent::SubmitInteraction()
 {
+	if(!IsValid(CurrentFocusedInteractable))
+	{
+		UE_LOG(LogInteract, Warning, TEXT("SubmitInteraction called on %s but CurrentFocusedInteractable is invalid!"), *GetOwner()->GetName());
+		return;
+	}
+
+	UE_LOG(LogInteract, Log, TEXT("SubmitInteraction called on %s, interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
+	
 	InteractionProgress = 0.f;
 	Server_RequestFinishInteraction();
-	UE_LOG(LogInteract, Log, TEXT("SubmitInteraction called on %s, interacting with: "), *GetOwner()->GetName());
 }
 
 void UInteractorComponent::UnbindDelegatesFrom(UInteractableComponent* Target)
@@ -176,8 +183,8 @@ void UInteractorComponent::UnbindDelegatesFrom(UInteractableComponent* Target)
 		return;
 
 	Target->OnBeginInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractBegun);
-	Target->OnFinishInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractBegun);
-	Target->OnCancelInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractBegun);
+	Target->OnFinishInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractFinished);
+	Target->OnCancelInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractCancelled);
 }
 
 void UInteractorComponent::ResetInteractionState()
@@ -195,9 +202,6 @@ void UInteractorComponent::ResetInteractionState()
 
 void UInteractorComponent::OnLocalInteractBegun(UInteractorComponent* Interactor)
 {
-	if(Interactor != this)
-		return;
-
 	CurrentInteractingWith = PendingInteractable;
 	PendingInteractable = nullptr;
 	InteractionProgress = 0.f;
@@ -208,9 +212,6 @@ void UInteractorComponent::OnLocalInteractBegun(UInteractorComponent* Interactor
 
 void UInteractorComponent::OnLocalInteractFinished(UInteractorComponent* Interactor)
 {
-	if(Interactor != this)
-		return;
-
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
 
@@ -242,18 +243,20 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 
 	const UInteractionRuleset* Ruleset = Target->GetRuleset();
 
-	if(false)//!Ruleset || Ruleset->bIsInteractable)
+	if(Ruleset && !Ruleset->bIsInteractable)
 	{
 		Client_InteractionRejected();
 		return;
 	}
+
+	UE_LOG(LogInteract, Log, TEXT("Server_StartInteracting called on %s, requested interaction with: %s"), *GetOwner()->GetName(), *Target->GetName());
 
 	// TODO: validation logic for whether this interaction should be allowed, based on the ruleset and current game state
 	// TODO: allowedtriggers check
 
 	Target->BeginInteraction(this);
 
-	// Server must set this directly since OnRep does not fire on servers
+	// Server must set this directly rather than relying on the OnLocalInteractBegun callback, as the server doesn't receive that callback via the multicast RPC
 	CurrentInteractingWith = Target;
 }
 

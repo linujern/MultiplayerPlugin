@@ -1,16 +1,16 @@
 #include "InteractionProgressHandler.h"
 
-void UInteractionProgressHandler::HandleProgressUpdate_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractionProgressHandler::HandleProgressUpdate_Implementation(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent)
 {
 	// Default implementation does nothing
 }
 
-void UInteractionProgressHandler::HandleInteractionFinished_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractionProgressHandler::HandleInteractionFinished_Implementation(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent)
 {
 	// Default implementation does nothing
 }
 
-void UInteractionProgressHandler::HandleInteractionCancelled_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractionProgressHandler::HandleInteractionCancelled_Implementation(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent)
 {
 	// Default implementation does nothing
 }

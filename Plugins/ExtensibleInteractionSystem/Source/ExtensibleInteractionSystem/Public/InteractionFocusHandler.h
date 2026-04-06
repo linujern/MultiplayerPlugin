@@ -12,8 +12,8 @@ class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionFocusHandler : public UObject
 public:
 	// Overwrite in blueprints or C++ to implement custom focus behavior. By default, just logs focus changes to demonstrate functionality.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionFocusHandler")
-	void HandleFocusGained(UInteractorComponent* Interactor);
+	void HandleFocusGained(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 	// Overwrite in blueprints or C++ to implement custom focus behavior. By default, just logs focus changes to demonstrate functionality.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionFocusHandler")
-	void HandleFocusLost(UInteractorComponent* Interactor);
+	void HandleFocusLost(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 };
