@@ -19,7 +19,7 @@ public:
 	float Cooldown = 0.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	float TimerDeductionRating = 1.f;
+	float TimerDeductionRate = 1.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
 	float AllowedTriggers = -1.f;

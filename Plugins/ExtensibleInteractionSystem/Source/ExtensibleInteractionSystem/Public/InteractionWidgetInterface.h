@@ -1,5 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "InteractorComponent.h"
 #include "UObject/Interface.h"
 #include "InteractionWidgetInterface.generated.h"
 
@@ -15,5 +16,5 @@ class IInteractionWidgetInterface
     
 public: 
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
-    void InteractionUpdate(float CompletionPercent);
+    void InteractionUpdate(UInteractorComponent* Interactor, float CompletionPercent);
 };
