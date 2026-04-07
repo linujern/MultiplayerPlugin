@@ -1,11 +1,12 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "InteractionFocusHandler.h"
-#include "InteractionProgressHandler.h"
-#include "InteractionRuleset.h"
-#include "InteractionTracer.h"
 #include "Engine/DeveloperSettings.h"
 #include "InteractionSettings.generated.h"
+
+class UInteractionRuleset;
+class UInteractionFocusHandler;
+class UInteractionProgressHandler;
+class UInteractionTracer;
 
 UCLASS(Config=Game, DefaultConfig, Blueprintable, meta=(DisplayName="Interaction Settings"))
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionSettings : public UDeveloperSettings
@@ -30,4 +31,10 @@ public:
 
 	UFUNCTION()
 	UInteractionRuleset* GetDefaultRuleset() const;
+	UFUNCTION()
+	TSubclassOf<UInteractionTracer> GetDefaultTracerClass() const;
+	UFUNCTION()
+	TSubclassOf<UInteractionFocusHandler> GetDefaultFocusHandlerClass() const;
+	UFUNCTION()
+	TSubclassOf<UInteractionProgressHandler> GetDefaultProgressHandlerClass() const;
 };

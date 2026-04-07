@@ -22,6 +22,6 @@ public:
 	float TimerDeductionRate = 1.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	float AllowedTriggers = -1.f;
+	int32 AllowedTriggers = -1; // negative values for infinite
 	
 };

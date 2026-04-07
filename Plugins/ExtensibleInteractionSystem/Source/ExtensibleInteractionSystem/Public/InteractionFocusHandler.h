@@ -1,8 +1,9 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "InteractorComponent.h"
 #include "UObject/Object.h"
 #include "InteractionFocusHandler.generated.h"
+
+class UInteractorComponent;
 
 UCLASS(Abstract, Blueprintable, EditInlineNew, ClassGroup=(Interaction))
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionFocusHandler : public UObject

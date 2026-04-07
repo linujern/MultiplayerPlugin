@@ -10,15 +10,16 @@ UInteractorComponent::UInteractorComponent()
 	SetIsReplicatedByDefault(true);
 }
 
-/*
- * Lifecycle
- */
+// ============================================================
+// LIFECYCLE
+// ============================================================
 
 void UInteractorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Only locally controlled pawns need a tracer
+	// Tracing is only needed on the locally controlled pawn. Simulated proxies and
+	// the server do not run traces - interaction authority is handled via RPCs.
 	const APawn* OwningPawn = Cast<APawn>(GetOwner());
 	if (!OwningPawn || !OwningPawn->IsLocallyControlled())
 		return;
@@ -35,7 +36,8 @@ void UInteractorComponent::BeginPlay()
 void UInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-	
+
+	// Only locally controlled pawns drive tracing and timers.
 	const APawn* OwningPawn = Cast<APawn>(GetOwner());
 	if (!OwningPawn || !OwningPawn->IsLocallyControlled())
 		return;
@@ -51,9 +53,9 @@ void UInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 		AdvanceTimer(DeltaTime);
 }
 
-/*
- * Public Interface
- */
+// ============================================================
+// PUBLIC INTERFACE
+// ============================================================
 
 void UInteractorComponent::StartInteracting()
 {
@@ -64,16 +66,20 @@ void UInteractorComponent::StartInteracting()
 
 	PendingInteractable = CurrentFocusedInteractable;
 
+	UE_LOG(LogInteract, Log, TEXT("StartInteracting called on %s, requesting interaction with: %s"), *GetOwner()->GetName(), *PendingInteractable->GetName());
+
+	// Bind before the server call in preparation for OnRep firing which broadcasts OnBeginInteraction
+	// - which is what moves PendingInteractable to CurrentInteractingWith.
 	PendingInteractable->OnBeginInteraction.AddDynamic(this, &UInteractorComponent::OnLocalInteractBegun);
 	PendingInteractable->OnFinishInteraction.AddDynamic(this, &UInteractorComponent::OnLocalInteractFinished);
 	PendingInteractable->OnCancelInteraction.AddDynamic(this, &UInteractorComponent::OnLocalInteractCancelled);
 	
 	Server_StartInteracting(PendingInteractable);
-	UE_LOG(LogInteract, Log, TEXT("StartInteracting called on %s, requesting interaction with: "), *GetOwner()->GetName());
 }
 
 void UInteractorComponent::StopInteracting()
 {
+	// Still waiting on server confirmation of the interaction - just cancel the pending request and unbind delegates.
 	if(IsValid(PendingInteractable) && !IsValid(CurrentInteractingWith))
 	{
 		UnbindDelegatesFrom(PendingInteractable);
@@ -87,15 +93,18 @@ void UInteractorComponent::StopInteracting()
 
 	const UInteractionRuleset* Ruleset = CurrentInteractingWith->GetRuleset();
 
+	// If the ruleset specifies a deduction rate, drain progress gradually before cancelling.
+	// This gives interactions a "sticky" feel - releasing briefly doesn't reset all progress.
+	// DrainTimer will send Server_CancelInteraction once progress reaches zero.
 	if(Ruleset && Ruleset->TimerDeductionRate > 0.f && InteractionProgress > 0.f)
-		bIsDraining = true; // Draintimer will send the cancel RPC once progress hits zero.
+		bIsDraining = true;
 	else
 		Server_CancelInteraction();
 }
 
-/*
- * Local logic
- */
+// ============================================================
+// LOCAL LOGIC
+// ============================================================
 
 void UInteractorComponent::TickTrace()
 {
@@ -110,23 +119,47 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 {
 	if (CurrentFocusedInteractable == NewFocused)
 		return;
-
+	
+	// Notify the old interactable it lost focus, and the new one that it gained focus.
+	// Focus is purely local, so this doesn't need to go through the server,
+	// but the server is still notified so it can update other clients via NetMulticast.
 	if (IsValid(CurrentFocusedInteractable))
+	{
 		CurrentFocusedInteractable->FocusLost(this);
+		Server_NotifyFocusLost(CurrentFocusedInteractable);
+	}
 
+	// Reset interaction when focus is lost.
+	UInteractableComponent* OldInteractor = CurrentInteractingWith;
+	if(!IsValid(OldInteractor))
+		OldInteractor = PendingInteractable;
+	if(IsValid(OldInteractor))
+	{
+		InteractionProgress = 0.0f;
+		bIsDraining = false;
+		OldInteractor->UpdateProgress(this, InteractionProgress);
+		Server_NotifyProgress(OldInteractor);
+		OldInteractor->InteractCancel(this, InteractionProgress);
+		OnLocalInteractCancelled(this);
+	}
+	
 	CurrentFocusedInteractable = NewFocused;
 
 	if(IsValid(CurrentFocusedInteractable))
+	{
 		CurrentFocusedInteractable->FocusGained(this);
+		Server_NotifyFocusGained(CurrentFocusedInteractable);
+	}
 }
 
 
 void UInteractorComponent::AdvanceTimer(float DeltaTime)
 {
 	const UInteractionRuleset* Ruleset = CurrentInteractingWith->GetRuleset();
+
+	// SecondsToTrigger <= 0 means instant interaction - submit without accumulating progress.
 	if(!IsValid(Ruleset) || Ruleset->SecondsToTrigger <= 0.f)
 	{
-		// submit immediately if no timer is required
 		SubmitInteraction();
 		return;
 	}
@@ -135,6 +168,7 @@ void UInteractorComponent::AdvanceTimer(float DeltaTime)
 	InteractionProgress = FMath::Clamp(InteractionProgress, 0.f, 1.f);
 
 	CurrentInteractingWith->UpdateProgress(this, InteractionProgress);
+	Server_NotifyProgress(CurrentInteractingWith);
 
 	if(InteractionProgress >= 1.f)
 		SubmitInteraction();
@@ -155,7 +189,9 @@ void UInteractorComponent::DrainTimer(float DeltaTime)
 	InteractionProgress -= DeltaTime * Ruleset->TimerDeductionRate / Ruleset->SecondsToTrigger;
 	InteractionProgress = FMath::Clamp(InteractionProgress, 0.f, 1.f);
 
-	// TODO: call interactionupdate on interactablecomponent
+	CurrentInteractingWith->UpdateProgress(this, InteractionProgress);
+	Server_NotifyProgress(CurrentInteractingWith);
+	
 	if(InteractionProgress <= 0.f)
 	{
 		bIsDraining = false;
@@ -165,9 +201,9 @@ void UInteractorComponent::DrainTimer(float DeltaTime)
 
 void UInteractorComponent::SubmitInteraction()
 {
-	if(!IsValid(CurrentFocusedInteractable))
+	if(!IsValid(CurrentInteractingWith))
 	{
-		UE_LOG(LogInteract, Warning, TEXT("SubmitInteraction called on %s but CurrentFocusedInteractable is invalid!"), *GetOwner()->GetName());
+		UE_LOG(LogInteract, Warning, TEXT("SubmitInteraction called on %s but CurrentInteractingWith is invalid!"), *GetOwner()->GetName());
 		return;
 	}
 
@@ -196,22 +232,36 @@ void UInteractorComponent::ResetInteractionState()
 	UE_LOG(LogInteract, Log, TEXT("ResetInteractionState called on %s"), *GetOwner()->GetName());
 }
 
-/*
- * Delegate Callbacks
- */
+// ============================================================
+// DELEGATE CALLBACKS
+// Bound to the target interactable's delegates in StartInteracting.
+// The Interactor != this guard ensures responses are only handled for
+// events instigated by this component. 
+// ============================================================
 
 void UInteractorComponent::OnLocalInteractBegun(UInteractorComponent* Interactor)
 {
+	if(Interactor != this)
+		return;
+
+	// Server has confirmed the interaction - move form pending to active.
 	CurrentInteractingWith = PendingInteractable;
 	PendingInteractable = nullptr;
 	InteractionProgress = 0.f;
 	bIsDraining = false;
+
+	CurrentInteractingWith->InteractBegin(this, InteractionProgress);
 
 	UE_LOG(LogInteract, Log, TEXT("OnLocalInteractBegun called on %s, now interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
 }
 
 void UInteractorComponent::OnLocalInteractFinished(UInteractorComponent* Interactor)
 {
+	if(Interactor != this)
+		return;
+
+	CurrentInteractingWith->InteractFinish(this, InteractionProgress);
+	
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
 
@@ -223,15 +273,17 @@ void UInteractorComponent::OnLocalInteractCancelled(UInteractorComponent* Intera
 	if(Interactor != this)
 		return;
 
+	CurrentInteractingWith->InteractCancel(this, InteractionProgress);
+
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
 
 	UE_LOG(LogInteract, Log, TEXT("OnLocalInteractCancelled called on %s"), *GetOwner()->GetName());
 }
 
-/*
- * Server RPCs
- */
+// ============================================================
+// SERVER RPCs
+// ============================================================
 
 void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableComponent* Target)
 {
@@ -256,7 +308,10 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 
 	Target->BeginInteraction(this);
 
-	// Server must set this directly rather than relying on the OnLocalInteractBegun callback, as the server doesn't receive that callback via the multicast RPC
+	Target->Multicast_OnInteractionBeginning(this, InteractionProgress);
+
+	// The server doesn't receive OnRep callbacks, so CurrentInteractingWith must be set directly here to allow
+	// Server_RequestFinishInteraction and Server_CancelInteraction to route correctly.
 	CurrentInteractingWith = Target;
 }
 
@@ -264,9 +319,8 @@ void UInteractorComponent::Server_RequestFinishInteraction_Implementation()
 {
 	if(!IsValid(CurrentInteractingWith))
 		return;
-	// interaction-rejected?
 
-	CurrentInteractingWith->FinishInteraction(this);
+	CurrentInteractingWith->FinishInteraction(this, InteractionProgress);
 	CurrentInteractingWith = nullptr;
 }
 
@@ -275,16 +329,41 @@ void UInteractorComponent::Server_CancelInteraction_Implementation()
 	if(!IsValid(CurrentInteractingWith))
 		return;
 
-	CurrentInteractingWith->CancelInteraction(this);
+	CurrentInteractingWith->CancelInteraction(this, InteractionProgress);
 	CurrentInteractingWith = nullptr;
 }
 
-/*
- * Client RPCs
- */
+void UInteractorComponent::Server_NotifyFocusGained_Implementation(UInteractableComponent* Target)
+{
+	if(!IsValid(Target))
+		return;
+
+	Target->Multicast_FocusGained(this);
+}
+
+void UInteractorComponent::Server_NotifyFocusLost_Implementation(UInteractableComponent* Target)
+{
+	if(!IsValid(Target))
+		return;
+
+	Target->Multicast_FocusLost(this);
+}
+
+void UInteractorComponent::Server_NotifyProgress_Implementation(UInteractableComponent* Target)
+{
+	if(!IsValid(Target))
+		return;
+	
+	Target->Multicast_UpdateProgress(this, InteractionProgress);
+}
+
+// ============================================================
+// CLIENT RPCs
+// ============================================================
 
 void UInteractorComponent::Client_InteractionRejected_Implementation()
 {
+	// Clean up whichever of the two might have been set at the time of rejection.
 	UnbindDelegatesFrom(PendingInteractable);
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
