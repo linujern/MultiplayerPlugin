@@ -16,12 +16,17 @@ public:
 	float SecondsToTrigger = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	float Cooldown = 0.f;
+	float TimerDeductionRate = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	float TimerDeductionRate = 1.f;
+	float CooldownSeconds = 0.f;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
 	int32 AllowedTriggers = -1; // negative values for infinite
+
+	// Minimum progress change required to trigger a progress update event.
+	// Prevents flooding with small updates when progress is changing very frequently (e.g. every tick).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
+	float GlobalProgressUpdateThreshold = 0.05f;
 	
 };

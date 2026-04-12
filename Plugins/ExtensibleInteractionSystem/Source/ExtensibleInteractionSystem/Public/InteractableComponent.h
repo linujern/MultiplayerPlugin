@@ -246,12 +246,11 @@ private:
 	// Must be Reliable because it represents authoritative state changes that must not be missed.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnInteractionCancelled(UInteractorComponent* Interactor, float ProgressPercent);
-	
-public:
-	
+
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_OnInteractionBeginning(UInteractorComponent* Interactor, float ProgressPercent);
 	
+public:
 	// Called by UInteractorComponent::Server_NotifyFocusGained
 	// Unreliable since focus can change frequently and missed packages are harmless
 	UFUNCTION(NetMulticast, Unreliable)

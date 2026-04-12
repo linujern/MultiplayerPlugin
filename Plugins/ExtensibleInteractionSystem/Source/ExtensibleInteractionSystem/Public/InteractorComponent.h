@@ -41,7 +41,7 @@ public:
 
 	// ============================================================
 	// Public Interface
-	// These functions should be wired to player (or other pawn) input - e.g. key-down calls to StartInterating, key-up StopInteracting
+	// These functions should be wired to player (or other pawn) input - e.g. key-down calls to StartInteracting, key-up StopInteracting
 	// ============================================================
 
 	// Called from the owning actor (e.g. from the player on key-down). Internally handles all logic to start interaction.
@@ -87,6 +87,10 @@ private:
 	float InteractionProgress = 0.0f;
 	// True while the player has released input but the progress hasn't drained to zero yet.
 	bool bIsDraining = false;
+
+	// Last progress value sent to the server for global progress handler updates.
+	// Used to throttle Server_NotifyProgress calls.
+	float LastSentProgress = 0.0f;
 	
 	// ============================================================
 	// Local Logic
@@ -96,6 +100,7 @@ private:
 	void UpdateCurrentFocusedInteractable(UInteractableComponent* NewFocused);
 	void AdvanceTimer(float DeltaTime);
 	void DrainTimer(float DeltaTime);
+	void TimerUpdate(float AddedValue, float UpdateThreshold);
 	void SubmitInteraction();
 	void UnbindDelegatesFrom(UInteractableComponent* Target);
 	void ResetInteractionState();
@@ -103,7 +108,7 @@ private:
 	// ============================================================
 	// Delegate Callbacks
 	// Bound to the interactable's delegates in StartInteracting.
-	// Must be UFUNTION for dynamic multicast binding.
+	// Must be FUNCTION for dynamic multicast binding.
 	// EAch checks Interactor == this to ignore events from other interactors.
 	// ============================================================
 	
@@ -146,8 +151,8 @@ private:
 	void Server_NotifyFocusLost(UInteractableComponent* Target);
 
 	// Informs the server of interaction progress on a Target. Server relays to all clients via multicast.
-	UFUNCTION(NetMulticast, Unreliable)
-	void Server_NotifyProgress(UInteractableComponent* Target);
+	UFUNCTION(Server, Unreliable)
+	void Server_NotifyProgress(UInteractableComponent* Target, const float Progress);
 
 	// ============================================================
 	// Client RPCs

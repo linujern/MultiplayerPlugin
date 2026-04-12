@@ -130,17 +130,16 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 	}
 
 	// Reset interaction when focus is lost.
-	UInteractableComponent* OldInteractor = CurrentInteractingWith;
-	if(!IsValid(OldInteractor))
-		OldInteractor = PendingInteractable;
-	if(IsValid(OldInteractor))
+	if(IsValid(PendingInteractable) && !IsValid(CurrentInteractingWith))
 	{
-		InteractionProgress = 0.0f;
+		UnbindDelegatesFrom(PendingInteractable);
+		PendingInteractable = nullptr;
+		Server_CancelInteraction();
+	}
+	else if(IsValid(CurrentInteractingWith))
+	{
 		bIsDraining = false;
-		OldInteractor->UpdateProgress(this, InteractionProgress);
-		Server_NotifyProgress(OldInteractor);
-		OldInteractor->InteractCancel(this, InteractionProgress);
-		OnLocalInteractCancelled(this);
+		Server_CancelInteraction();
 	}
 	
 	CurrentFocusedInteractable = NewFocused;
@@ -151,7 +150,6 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 		Server_NotifyFocusGained(CurrentFocusedInteractable);
 	}
 }
-
 
 void UInteractorComponent::AdvanceTimer(float DeltaTime)
 {
@@ -164,12 +162,8 @@ void UInteractorComponent::AdvanceTimer(float DeltaTime)
 		return;
 	}
 
-	InteractionProgress += DeltaTime / Ruleset->SecondsToTrigger;
-	InteractionProgress = FMath::Clamp(InteractionProgress, 0.f, 1.f);
-
-	CurrentInteractingWith->UpdateProgress(this, InteractionProgress);
-	Server_NotifyProgress(CurrentInteractingWith);
-
+	TimerUpdate(DeltaTime / Ruleset->SecondsToTrigger, Ruleset->GlobalProgressUpdateThreshold);
+	
 	if(InteractionProgress >= 1.f)
 		SubmitInteraction();
 }
@@ -186,16 +180,29 @@ void UInteractorComponent::DrainTimer(float DeltaTime)
 	}
 
 	// TimerDeductionRate is a multiplier on the fill rate: 1.0 means it drains as quickly as it fills, 2.0 drains twice as fast
-	InteractionProgress -= DeltaTime * Ruleset->TimerDeductionRate / Ruleset->SecondsToTrigger;
-	InteractionProgress = FMath::Clamp(InteractionProgress, 0.f, 1.f);
-
-	CurrentInteractingWith->UpdateProgress(this, InteractionProgress);
-	Server_NotifyProgress(CurrentInteractingWith);
+	TimerUpdate(-DeltaTime * Ruleset->TimerDeductionRate / Ruleset->SecondsToTrigger, Ruleset->GlobalProgressUpdateThreshold);
 	
 	if(InteractionProgress <= 0.f)
 	{
 		bIsDraining = false;
 		Server_CancelInteraction();
+	}
+}
+
+// Helper for AdvanceTimer and DrainTimer to update progress and send updates to global progress handlers through the server.
+void UInteractorComponent::TimerUpdate(float AddedValue, float UpdateThreshold)
+{
+	InteractionProgress += AddedValue;
+	InteractionProgress = FMath::Clamp(InteractionProgress, 0.f, 1.f);
+
+	CurrentInteractingWith->UpdateProgress(this, InteractionProgress);
+
+	// --- Throttles frequency of progress updates sent through the sever ---
+	const float ProgressDelta = FMath::Abs(InteractionProgress - LastSentProgress);
+	if(ProgressDelta >= UpdateThreshold)
+	{
+		Server_NotifyProgress(CurrentInteractingWith, InteractionProgress);
+		LastSentProgress = InteractionProgress;
 	}
 }
 
@@ -209,8 +216,8 @@ void UInteractorComponent::SubmitInteraction()
 
 	UE_LOG(LogInteract, Log, TEXT("SubmitInteraction called on %s, interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
 	
-	InteractionProgress = 0.f;
 	Server_RequestFinishInteraction();
+	InteractionProgress = 0.f;
 }
 
 void UInteractorComponent::UnbindDelegatesFrom(UInteractableComponent* Target)
@@ -226,6 +233,7 @@ void UInteractorComponent::UnbindDelegatesFrom(UInteractableComponent* Target)
 void UInteractorComponent::ResetInteractionState()
 {
 	InteractionProgress = 0.f;
+	LastSentProgress = 0.f;
 	bIsDraining = false;
 	CurrentInteractingWith = nullptr;
 	PendingInteractable = nullptr;
@@ -247,7 +255,7 @@ void UInteractorComponent::OnLocalInteractBegun(UInteractorComponent* Interactor
 	// Server has confirmed the interaction - move form pending to active.
 	CurrentInteractingWith = PendingInteractable;
 	PendingInteractable = nullptr;
-	InteractionProgress = 0.f;
+	InteractionProgress = 0.0f;
 	bIsDraining = false;
 
 	CurrentInteractingWith->InteractBegin(this, InteractionProgress);
@@ -308,8 +316,6 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 
 	Target->BeginInteraction(this);
 
-	Target->Multicast_OnInteractionBeginning(this, InteractionProgress);
-
 	// The server doesn't receive OnRep callbacks, so CurrentInteractingWith must be set directly here to allow
 	// Server_RequestFinishInteraction and Server_CancelInteraction to route correctly.
 	CurrentInteractingWith = Target;
@@ -349,12 +355,12 @@ void UInteractorComponent::Server_NotifyFocusLost_Implementation(UInteractableCo
 	Target->Multicast_FocusLost(this);
 }
 
-void UInteractorComponent::Server_NotifyProgress_Implementation(UInteractableComponent* Target)
+void UInteractorComponent::Server_NotifyProgress_Implementation(UInteractableComponent* Target, const float Progress)
 {
 	if(!IsValid(Target))
 		return;
 	
-	Target->Multicast_UpdateProgress(this, InteractionProgress);
+	Target->Multicast_UpdateProgress(this, Progress);
 }
 
 // ============================================================

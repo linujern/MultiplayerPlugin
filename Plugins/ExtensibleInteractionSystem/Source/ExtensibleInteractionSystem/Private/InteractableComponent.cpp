@@ -104,6 +104,8 @@ void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor)
 
 	// OnRep does not fire on server, so the delegate is broadcast directly for any server-side listeners.
 	OnBeginInteraction.Broadcast(Interactor);
+
+	Multicast_OnInteractionBeginning(Interactor, 0.f);
 }
 
 void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor, float ProgressPercent)
@@ -146,19 +148,19 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 		LocalFocusHandler->HandleFocusLost(this, Interactor);
 }
 
-void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& ProgressHandler : LocalProgressHandlers)
 		ProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
-void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& LocalProgressHandler  : LocalProgressHandlers)
 		LocalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 }
 
-void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& ProgressHandler : LocalProgressHandlers)
 		ProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
@@ -213,7 +215,7 @@ void UInteractableComponent::OnRep_InteractState()
 // MULTICAST RPCs
 // ============================================================
 
-void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	OnFinishInteraction.Broadcast(Interactor);
 
@@ -229,7 +231,7 @@ void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInt
 		GlobalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
 }
 
-void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
+void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	OnCancelInteraction.Broadcast(Interactor);
 
