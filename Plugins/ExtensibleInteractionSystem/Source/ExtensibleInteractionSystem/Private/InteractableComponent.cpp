@@ -5,7 +5,6 @@
 #include "InteractionProgressHandler.h"
 #include "InteractionSettings.h"
 #include "LogInteractionSystem.h"
-#include "Chaos/Character/CharacterGroundConstraintContainer.h"
 #include "Net/UnrealNetwork.h"
 
 UInteractableComponent::UInteractableComponent()
@@ -27,27 +26,36 @@ void UInteractableComponent::BeginPlay()
 	if(GetNetMode() == NM_DedicatedServer)
 		return;
 
-	// Helper lambda to instantiate an array of handler object from their class array.
-	// Falls back to the project default from UInteractionSettings if no classes are specified.
-	// The fallback is only added once - an empty class means "use the default", not "don't use any handlers".
-	auto InstantiateHandlers = [this](auto& ClassArray, auto& InstanceArray, auto GetDefaultFunc)
-	{
-		if (ClassArray.Num() == 0)
-			for(const auto& HandlerClass :  ClassArray)
-				if(HandlerClass)
-					InstanceArray.Add(NewObject<decltype(InstanceArray[0].Get())>(this, HandlerClass));
-		
-		else
-			if(auto DefaultClass = GetDefaultFunc())
-				InstanceArray.Add(NewObject<decltype(InstanceArray[0].Get())>(this, DefaultClass));
-	};
-
+	// Maybe this could all be a clean lambda. I couldn't figure it out though, so it'll have to be repetitive for now. At least it's straightforward to read.
 	const UInteractionSettings* Settings = GetDefault<UInteractionSettings>();
 
-	InstantiateHandlers(LocalFocusHandlerClasses, LocalFocusHandlers, [Settings]{ return Settings ? Settings->GetDefaultLocalFocusHandlerClass : nullptr; });
-	InstantiateHandlers(GlobalFocusHandlerClasses, GlobalFocusHandlers, [Settings]{ return Settings ? Settings->GetDefaultGlobalFocusHandlerClass : nullptr; });
-	InstantiateHandlers(LocalProgressHandlerClasses, LocalProgressHandlers, [Settings]{ return Settings ? Settings->GetDefaultLocalProgressHandlerClass : nullptr; });
-	InstantiateHandlers(GlobalProgressHandlerClasses, GlobalProgressHandlers, [Settings]{ return Settings ? Settings->GetDefaultGlobalProgressHandlerClass : nullptr; });
+	// Local Focus Handlers
+	for (const TSubclassOf<UInteractionFocusHandler>& Class : LocalFocusHandlerClasses)
+		if (Class) LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Class));
+	if (LocalFocusHandlers.IsEmpty() && Settings)
+		if (auto Default = Settings->GetDefaultLocalFocusHandlerClass())
+			LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Default));
+
+	// Global Focus Handlers
+	for (const TSubclassOf<UInteractionFocusHandler>& Class : GlobalFocusHandlerClasses)
+		if (Class) GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Class));
+	if (GlobalFocusHandlers.IsEmpty() && Settings)
+		if (auto Default = Settings->GetDefaultGlobalFocusHandlerClass())
+			GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Default));
+
+	// Local Progress Handlers
+	for (const TSubclassOf<UInteractionProgressHandler>& Class : LocalProgressHandlerClasses)
+		if (Class) LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Class));
+	if (LocalProgressHandlers.IsEmpty() && Settings)
+		if (auto Default = Settings->GetDefaultLocalProgressHandlerClass())
+			LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Default));
+
+	// Global Progress Handlers
+	for (const TSubclassOf<UInteractionProgressHandler>& Class : GlobalProgressHandlerClasses)
+		if (Class) GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Class));
+	if (GlobalProgressHandlers.IsEmpty() && Settings)
+		if (auto Default = Settings->GetDefaultGlobalProgressHandlerClass())
+			GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Default));
 }
 
 void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -193,11 +201,8 @@ void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInt
 
 	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionFinished called on %s"), *GetOwner()->GetName());
 	
-	// skip on the owning client - they already ran local handlers directly
-	if (IsValid(Interactor))
-		if (const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner()))
-			if (OwningPawn->IsLocallyControlled())
-				return;
+	if(IsLocallyInstigated(Interactor))
+		return;
 	
 	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
 		GlobalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
@@ -209,11 +214,8 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 
 	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionCancelled called on %s"), *GetOwner()->GetName());
 
-	// skip on the owning client - they already ran local handlers directly
-	if (IsValid(Interactor))
-		if (const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner()))
-			if (OwningPawn->IsLocallyControlled())
-				return;
+	if(IsLocallyInstigated(Interactor))
+		return;
 	
 	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
 		GlobalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
@@ -221,11 +223,8 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 
 void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorComponent* Interactor)
 {
-	// skip on the owning client - they already ran local handlers directly
-	if (IsValid(Interactor))
-		if (const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner()))
-			if (OwningPawn->IsLocallyControlled())
-				return;
+	if(IsLocallyInstigated(Interactor))
+		return;
 	
 	for (const auto& FocusHandler : GlobalFocusHandlers)
 		FocusHandler->HandleFocusGained(this, Interactor);
@@ -233,11 +232,8 @@ void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorCom
 
 void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorComponent* Interactor)
 {
-	// skip on the owning client - they already ran local handlers directly
-	if (IsValid(Interactor))
-		if (const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner()))
-			if (OwningPawn->IsLocallyControlled())
-				return;
+	if(IsLocallyInstigated(Interactor))
+		return;
 	
 	for (const auto& FocusHandler : GlobalFocusHandlers)
 		FocusHandler->HandleFocusLost(this, Interactor);
@@ -245,11 +241,8 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	// skip on the owning client - they already ran local handlers directly
-	if (IsValid(Interactor))
-		if (const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner()))
-			if (OwningPawn->IsLocallyControlled())
-				return;
+	if(IsLocallyInstigated(Interactor))
+		return;
 	
 	for (const auto& ProgressHandler : GlobalProgressHandlers)
 		ProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
@@ -257,13 +250,21 @@ void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractor
 
 void UInteractableComponent::Multicast_OnInteractionBeginning_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
 {
-	// skip on the owning client - they already ran local handlers directly
-	if (IsValid(Interactor))
-		if (const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner()))
-			if (OwningPawn->IsLocallyControlled())
-				return;
+	if(IsLocallyInstigated(Interactor))
+		return;
 	
 	for (const auto& ProgressHandler : GlobalProgressHandlers)
 		ProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
+// ============================================================
+// Helpers
+// ============================================================
+
+bool UInteractableComponent::IsLocallyInstigated(const UInteractorComponent* Interactor)
+{
+	if (!IsValid(Interactor))
+		return false;
+	const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner());
+	return OwningPawn->IsLocallyControlled();
+}

@@ -84,7 +84,7 @@ void UInteractorComponent::StopInteracting()
 	{
 		UnbindDelegatesFrom(PendingInteractable);
 		PendingInteractable = nullptr;
-		Server_CancelInteraction();
+		Server_CancelInteraction(InteractionProgress);
 		return;
 	}
 
@@ -99,7 +99,7 @@ void UInteractorComponent::StopInteracting()
 	if(Ruleset && Ruleset->TimerDeductionRate > 0.f && InteractionProgress > 0.f)
 		bIsDraining = true;
 	else
-		Server_CancelInteraction();
+		Server_CancelInteraction(InteractionProgress);
 }
 
 // ============================================================
@@ -134,12 +134,12 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 	{
 		UnbindDelegatesFrom(PendingInteractable);
 		PendingInteractable = nullptr;
-		Server_CancelInteraction();
+		Server_CancelInteraction(InteractionProgress);
 	}
 	else if(IsValid(CurrentInteractingWith))
 	{
 		bIsDraining = false;
-		Server_CancelInteraction();
+		Server_CancelInteraction(InteractionProgress);
 	}
 	
 	CurrentFocusedInteractable = NewFocused;
@@ -175,7 +175,7 @@ void UInteractorComponent::DrainTimer(float DeltaTime)
 	{
 		// no ruleset - just cancel
 		bIsDraining = false;
-		Server_CancelInteraction();
+		Server_CancelInteraction(InteractionProgress);
 		return;
 	}
 
@@ -185,7 +185,7 @@ void UInteractorComponent::DrainTimer(float DeltaTime)
 	if(InteractionProgress <= 0.f)
 	{
 		bIsDraining = false;
-		Server_CancelInteraction();
+		Server_CancelInteraction(InteractionProgress);
 	}
 }
 
@@ -216,7 +216,7 @@ void UInteractorComponent::SubmitInteraction()
 
 	UE_LOG(LogInteract, Log, TEXT("SubmitInteraction called on %s, interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
 	
-	Server_RequestFinishInteraction();
+	Server_RequestFinishInteraction(InteractionProgress);
 	InteractionProgress = 0.f;
 }
 
@@ -255,7 +255,7 @@ void UInteractorComponent::OnLocalInteractBegun(UInteractorComponent* Interactor
 	// Server has confirmed the interaction - move form pending to active.
 	CurrentInteractingWith = PendingInteractable;
 	PendingInteractable = nullptr;
-	InteractionProgress = 0.0f;
+	InteractionProgress = 0.f;
 	bIsDraining = false;
 
 	CurrentInteractingWith->InteractBegin(this, InteractionProgress);
@@ -321,21 +321,21 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 	CurrentInteractingWith = Target;
 }
 
-void UInteractorComponent::Server_RequestFinishInteraction_Implementation()
+void UInteractorComponent::Server_RequestFinishInteraction_Implementation(float Progress)
 {
 	if(!IsValid(CurrentInteractingWith))
 		return;
 
-	CurrentInteractingWith->FinishInteraction(this, InteractionProgress);
+	CurrentInteractingWith->FinishInteraction(this, Progress);
 	CurrentInteractingWith = nullptr;
 }
 
-void UInteractorComponent::Server_CancelInteraction_Implementation()
+void UInteractorComponent::Server_CancelInteraction_Implementation(float Progress)
 {
 	if(!IsValid(CurrentInteractingWith))
 		return;
 
-	CurrentInteractingWith->CancelInteraction(this, InteractionProgress);
+	CurrentInteractingWith->CancelInteraction(this, Progress);
 	CurrentInteractingWith = nullptr;
 }
 

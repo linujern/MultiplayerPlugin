@@ -135,12 +135,12 @@ private:
 	// Informs the server that the local hold timer has completed.
 	// Server validates and calls Target->FinishInteraction
 	UFUNCTION(Server, Reliable)
-	void Server_RequestFinishInteraction();
+	void Server_RequestFinishInteraction(float Progress);
 
 	// Informs the server that the interaction was cancelled locally.
 	// Also called automatically by DrainTimer once progress reaches zero.
 	UFUNCTION(Server, Reliable)
-	void Server_CancelInteraction();
+	void Server_CancelInteraction(float Progress);
 
 	// Informs the server that focus was gained on Target. Server relays to all clients via multicast.
 	UFUNCTION(Server, Unreliable)
