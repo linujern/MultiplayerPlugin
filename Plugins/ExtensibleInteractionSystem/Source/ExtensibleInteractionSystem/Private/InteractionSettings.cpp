@@ -19,12 +19,22 @@ TSubclassOf<UInteractionTracer> UInteractionSettings::GetDefaultTracerClass() co
 	return DefaultTracerClass.LoadSynchronous();
 }
 
-TSubclassOf<UInteractionFocusHandler> UInteractionSettings::GetDefaultFocusHandlerClass() const
+TSubclassOf<UInteractionFocusHandler> UInteractionSettings::GetDefaultLocalFocusHandlerClass() const
 {
-	return DefaultFocusHandlerClass.LoadSynchronous();
+	return DefaultLocalFocusHandlerClass.LoadSynchronous();
 }
 
-TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultProgressHandlerClass() const
+TSubclassOf<UInteractionFocusHandler> UInteractionSettings::GetDefaultGlobalFocusHandlerClass() const
 {
-	return DefaultProgressHandlerClass.LoadSynchronous();
+	return DefaultGlobalFocusHandlerClass.LoadSynchronous();
+}
+
+TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultLocalProgressHandlerClass() const
+{
+	return DefaultLocalProgressHandlerClass.LoadSynchronous();
+}
+
+TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultGlobalProgressHandlerClass() const
+{
+	return DefaultGlobalProgressHandlerClass.LoadSynchronous();
 }

@@ -5,6 +5,7 @@
 #include "InteractionProgressHandler.h"
 #include "InteractionSettings.h"
 #include "LogInteractionSystem.h"
+#include "Chaos/Character/CharacterGroundConstraintContainer.h"
 #include "Net/UnrealNetwork.h"
 
 UInteractableComponent::UInteractableComponent()
@@ -26,56 +27,27 @@ void UInteractableComponent::BeginPlay()
 	if(GetNetMode() == NM_DedicatedServer)
 		return;
 
-	// TODO: figure out how to use a lambda here instead of copying code 4 times
+	// Helper lambda to instantiate an array of handler object from their class array.
+	// Falls back to the project default from UInteractionSettings if no classes are specified.
+	// The fallback is only added once - an empty class means "use the default", not "don't use any handlers".
+	auto InstantiateHandlers = [this](auto& ClassArray, auto& InstanceArray, auto GetDefaultFunc)
+	{
+		if (ClassArray.Num() == 0)
+			for(const auto& HandlerClass :  ClassArray)
+				if(HandlerClass)
+					InstanceArray.Add(NewObject<decltype(InstanceArray[0].Get())>(this, HandlerClass));
+		
+		else
+			if(auto DefaultClass = GetDefaultFunc())
+				InstanceArray.Add(NewObject<decltype(InstanceArray[0].Get())>(this, DefaultClass));
+	};
 
-	// --- Set up LOCAL Focus Handler(s) ---
-	if(LocalFocusHandlerClasses.Num() > 0)
-		for (const TSubclassOf<UInteractionFocusHandler>& FocusHandlerClass : LocalFocusHandlerClasses)
-			if (IsValid(FocusHandlerClass))
-				LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, FocusHandlerClass));
-			
-	else 
-	{// falls back to settings default if none is set
-		if (const UInteractionSettings* Settings = GetDefault<UInteractionSettings>())
-			if (TSubclassOf<UInteractionFocusHandler> DefaultFocusHandler = Settings->GetDefaultFocusHandlerClass())
-				LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, DefaultFocusHandler));
-	}
-	
-	// --- Set up GLOBAL Focus Handler(s) ---
-	if(GlobalFocusHandlerClasses.Num() > 0)
-		for (const TSubclassOf<UInteractionFocusHandler>& FocusHandlerClass : GlobalFocusHandlerClasses)
-			if(IsValid(FocusHandlerClass))
-				GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, FocusHandlerClass));
-	else 
-	{// falls back to settings default if none is set
-		if (const UInteractionSettings* Settings = GetDefault<UInteractionSettings>())
-			if (TSubclassOf<UInteractionFocusHandler> DefaultFocusHandler = Settings->GetDefaultFocusHandlerClass())
-				GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, DefaultFocusHandler));
-	}
+	const UInteractionSettings* Settings = GetDefault<UInteractionSettings>();
 
-	// --- Set up LOCAL Progress Handler(s) ---
-	if(LocalProgressHandlerClasses.Num() > 0)
-		for (const TSubclassOf<UInteractionProgressHandler>& ProgressHandlerClass : LocalProgressHandlerClasses)
-			if(IsValid(ProgressHandlerClass))
-				LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, ProgressHandlerClass));
-	else 
-	{// falls back to settings default if none is set
-		if (const UInteractionSettings* Settings = GetDefault<UInteractionSettings>())
-			if (TSubclassOf<UInteractionProgressHandler> DefaultProgressHandler = Settings->GetDefaultProgressHandlerClass())
-				LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, DefaultProgressHandler));
-	}
-	
-	// --- Set up GLOBAL Progress Handler(s) ---
-	if(GlobalProgressHandlerClasses.Num() > 0)
-		for (const TSubclassOf<UInteractionProgressHandler>& ProgressHandlerClass : GlobalProgressHandlerClasses)
-			if(IsValid(ProgressHandlerClass))
-				GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, ProgressHandlerClass));
-	else 
-	{// falls back to settings default if none is set
-		if (const UInteractionSettings* Settings = GetDefault<UInteractionSettings>())
-			if (TSubclassOf<UInteractionProgressHandler> DefaultProgressHandler = Settings->GetDefaultProgressHandlerClass())
-				GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, DefaultProgressHandler));
-	}
+	InstantiateHandlers(LocalFocusHandlerClasses, LocalFocusHandlers, [Settings]{ return Settings ? Settings->GetDefaultLocalFocusHandlerClass : nullptr; });
+	InstantiateHandlers(GlobalFocusHandlerClasses, GlobalFocusHandlers, [Settings]{ return Settings ? Settings->GetDefaultGlobalFocusHandlerClass : nullptr; });
+	InstantiateHandlers(LocalProgressHandlerClasses, LocalProgressHandlers, [Settings]{ return Settings ? Settings->GetDefaultLocalProgressHandlerClass : nullptr; });
+	InstantiateHandlers(GlobalProgressHandlerClasses, GlobalProgressHandlers, [Settings]{ return Settings ? Settings->GetDefaultGlobalProgressHandlerClass : nullptr; });
 }
 
 void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

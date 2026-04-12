@@ -22,19 +22,33 @@ public:
 	// The default Tracer class to instantiate. Always a UInteractionTracer subclass.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
 	TSoftClassPtr<UInteractionTracer> DefaultTracerClass;
-	// The default FocusHandler class to instantiate. Always a UInteractionFocusHandler subclass.
+	// The default Local FocusHandler class to instantiate. Controls what the local player sees on focus.
+	// Always a UInteractionFocusHandler subclass.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
-	TSoftClassPtr<UInteractionFocusHandler> DefaultFocusHandlerClass;
-	// The default ProgressHandler class to instantiate. Always a UInteractionProgressHandler subclass.
+	TSoftClassPtr<UInteractionFocusHandler> DefaultLocalFocusHandlerClass;
+	// The default Global FocusHandler class to instantiate. Controls what all non-local players see on local player focus.
+	// Always a UInteractionFocusHandler subclass.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
-	TSoftClassPtr<UInteractionProgressHandler> DefaultProgressHandlerClass;
+	TSoftClassPtr<UInteractionFocusHandler> DefaultGlobalFocusHandlerClass;
+	// The default Local ProgressHandler class to instantiate. Controls what the local player sees on interaction progress.
+	// Always a UInteractionProgressHandler subclass.
+	UPROPERTY(Config, EditAnywhere, Category="Interaction")
+	TSoftClassPtr<UInteractionProgressHandler> DefaultLocalProgressHandlerClass;
+	// The default Global ProgressHandler class to instantiate. Controls what all non-local players see while the local player interacts.
+	// Always a UInteractionProgressHandler subclass.
+	UPROPERTY(Config, EditAnywhere, Category="Interaction")
+	TSoftClassPtr<UInteractionProgressHandler> DefaultGlobalProgressHandlerClass;
 
 	UFUNCTION()
 	UInteractionRuleset* GetDefaultRuleset() const;
 	UFUNCTION()
 	TSubclassOf<UInteractionTracer> GetDefaultTracerClass() const;
 	UFUNCTION()
-	TSubclassOf<UInteractionFocusHandler> GetDefaultFocusHandlerClass() const;
+	TSubclassOf<UInteractionFocusHandler> GetDefaultLocalFocusHandlerClass() const;
 	UFUNCTION()
-	TSubclassOf<UInteractionProgressHandler> GetDefaultProgressHandlerClass() const;
+	TSubclassOf<UInteractionFocusHandler> GetDefaultGlobalFocusHandlerClass() const;
+	UFUNCTION()
+	TSubclassOf<UInteractionProgressHandler> GetDefaultLocalProgressHandlerClass() const;
+	UFUNCTION()
+	TSubclassOf<UInteractionProgressHandler> GetDefaultGlobalProgressHandlerClass() const;
 };
