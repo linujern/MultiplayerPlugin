@@ -50,24 +50,21 @@ public:
 	// Called from the owning actor (e.g. from the player on key-release). Internally handles all logic to stop interaction.
 	UFUNCTION(BlueprintCallable, Category="Interaction")
 	void StopInteracting();
-	
+
 protected:
 
 	// ============================================================
-	// Configuration
+	// Tracer
 	// ============================================================
 	
-	UPROPERTY(EditDefaultsOnly, Category="Interaction")
-	TSubclassOf<UInteractionTracer> InteractionTracerClass;
-
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	TObjectPtr<UInteractionTracer> InteractionTracer;
+	
 private:
 
 	// ============================================================
 	// State
 	// ============================================================
-	
-	UPROPERTY()
-	TObjectPtr<UInteractionTracer> Tracer;
 
 	// The currently focused InteractableComponent, updated each tick from the Tracer. Focus is purely local and never replicated.
 	UPROPERTY()

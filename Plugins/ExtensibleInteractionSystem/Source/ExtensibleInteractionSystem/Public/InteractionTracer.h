@@ -4,7 +4,7 @@
 
 class UInteractableComponent;
 
-UCLASS(Abstract, Blueprintable, ClassGroup=(Interaction))
+UCLASS(Abstract, Blueprintable, EditInlineNew, ClassGroup=(Interaction))
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionTracer : public UObject
 {
 	GENERATED_BODY()

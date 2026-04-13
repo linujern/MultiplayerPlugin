@@ -3,6 +3,7 @@
 #include "UObject/Object.h"
 #include "InteractionFocusHandler.generated.h"
 
+class UInteractableComponent;
 class UInteractorComponent;
 
 UCLASS(Abstract, Blueprintable, EditInlineNew, ClassGroup=(Interaction))

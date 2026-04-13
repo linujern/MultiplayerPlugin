@@ -24,12 +24,9 @@ void UInteractorComponent::BeginPlay()
 	if (!OwningPawn || !OwningPawn->IsLocallyControlled())
 		return;
 
-	if (InteractionTracerClass)
-		Tracer = NewObject<UInteractionTracer>(this, InteractionTracerClass);
-	else
+	if (!InteractionTracer)
 	{
 		// TODO: fallback to the UInteractionSettings DefaultTracerClass
-		UE_LOG(LogInteract, Log, TEXT("InteractorComponent on %s has no InteractionTracerClass set!"), *GetOwner()->GetName());
 	}
 }
 
@@ -108,10 +105,10 @@ void UInteractorComponent::StopInteracting()
 
 void UInteractorComponent::TickTrace()
 {
-	if(!Tracer)
+	if(!InteractionTracer)
 		return;
 	
-	UInteractableComponent* Found = Tracer->FindBestInteractable(GetOwner());
+	UInteractableComponent* Found = InteractionTracer->FindBestInteractable(GetOwner());
 	UpdateCurrentFocusedInteractable(Found);
 }
 
@@ -144,7 +141,7 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 	
 	CurrentFocusedInteractable = NewFocused;
 
-	if(IsValid(CurrentFocusedInteractable))
+	if(IsValid(NewFocused))
 	{
 		CurrentFocusedInteractable->FocusGained(this);
 		Server_NotifyFocusGained(CurrentFocusedInteractable);
