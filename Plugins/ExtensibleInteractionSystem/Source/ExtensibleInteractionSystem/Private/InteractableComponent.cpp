@@ -78,20 +78,22 @@ void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, 
 	// CurrentInteractor must be set before the InteractState to ensure it arrives first in the
 	// replication bunch, since OnRep_InteractState reads it.
 	CurrentInteractors.AddUnique(Interactor);
-	if(CurrentInteractors.Num() > 0)
+	if(CurrentInteractors.Num() == 1)
 		InteractState = EInteractionState::Interacting;
 
 	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		GlobalProgressHandler->HandleInteractionStart(this, Interactor, 0.f);
-
-	Multicast_OnInteractionBegun(Interactor, ProgressPercent);
+		if(GlobalProgressHandler)
+			GlobalProgressHandler->HandleInteractionStart(this, Interactor, 0.f);
+	
 	OnBeginInteraction.Broadcast(Interactor);
 }
 
 void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor, float ProgressPercent)
 {
 	CurrentInteractors.Remove(Interactor);
-	InteractState = EInteractionState::Idle;
+	
+	if(CurrentInteractors.IsEmpty())
+		InteractState = EInteractionState::Idle;
 	
 	Multicast_OnInteractionFinished(Interactor, ProgressPercent);
 }
@@ -99,7 +101,9 @@ void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor,
 void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor, float ProgressPercent)
 {
 	CurrentInteractors.Remove(Interactor);
-	InteractState = EInteractionState::Idle;
+	
+	if(CurrentInteractors.IsEmpty())
+		InteractState = EInteractionState::Idle;
 	
 	Multicast_OnInteractionCancelled(Interactor, ProgressPercent);
 }
@@ -114,7 +118,8 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 	OnFocusGained.Broadcast(Interactor);
 
 	for (const auto& LocalFocusHandler : LocalFocusHandlers)
-		LocalFocusHandler->HandleFocusGained(this, Interactor);
+		if (LocalFocusHandler)
+			LocalFocusHandler->HandleFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
@@ -122,31 +127,37 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 	OnFocusLost.Broadcast(Interactor);
 	
 	for (const auto& LocalFocusHandler : LocalFocusHandlers)
-		LocalFocusHandler->HandleFocusLost(this, Interactor);
+		if (LocalFocusHandler)
+			LocalFocusHandler->HandleFocusLost(this, Interactor);
 }
 
 void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& ProgressHandler : LocalProgressHandlers)
-		ProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
+	for (const auto& LocalProgressHandler : LocalProgressHandlers)
+		if (LocalProgressHandler)
+			LocalProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& LocalProgressHandler  : LocalProgressHandlers)
-		LocalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
+		if (LocalProgressHandler)
+			LocalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& ProgressHandler : LocalProgressHandlers)
-		ProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
+	for (const auto& LocalProgressHandler : LocalProgressHandlers)
+		if (LocalProgressHandler)
+			LocalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::UpdateProgress(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& ProgressHandler : LocalProgressHandlers)
-		ProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
+	UE_LOG(LogInteract, Log, TEXT("LocalProgressHandler index 0 is: %s."), LocalProgressHandlers[0] ? *LocalProgressHandlers[0]->GetName() : TEXT("null"));
+	for (const auto& LocalProgressHandler : LocalProgressHandlers)
+		if (LocalProgressHandler)
+			LocalProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
 }
 
 // ============================================================
@@ -181,8 +192,9 @@ void UInteractableComponent::Multicast_OnInteractionBegun_Implementation(UIntera
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& ProgressHandler : GlobalProgressHandlers)
-		ProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
+	for (const auto& GlobalProgressHandler : GlobalProgressHandlers)
+		if(GlobalProgressHandler)
+			GlobalProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -195,7 +207,8 @@ void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInt
 		return;
 	
 	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		GlobalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
+		if(GlobalProgressHandler)
+			GlobalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -208,7 +221,8 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 		return;
 	
 	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		GlobalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
+		if(GlobalProgressHandler)
+			GlobalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorComponent* Interactor)
@@ -216,8 +230,9 @@ void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorCom
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& FocusHandler : GlobalFocusHandlers)
-		FocusHandler->HandleFocusGained(this, Interactor);
+	for (const auto& GlobalFocusHandler : GlobalFocusHandlers)
+		if(GlobalFocusHandler)
+			GlobalFocusHandler->HandleFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorComponent* Interactor)
@@ -225,8 +240,9 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& FocusHandler : GlobalFocusHandlers)
-		FocusHandler->HandleFocusLost(this, Interactor);
+	for (const auto& GlobalFocusHandler : GlobalFocusHandlers)
+		if(GlobalFocusHandler)
+			GlobalFocusHandler->HandleFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -234,8 +250,9 @@ void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractor
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& ProgressHandler : GlobalProgressHandlers)
-		ProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
+	for (const auto& GlobalProgressHandler : GlobalProgressHandlers)
+		if(GlobalProgressHandler)
+			GlobalProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
 }
 
 // ============================================================
@@ -246,6 +263,8 @@ bool UInteractableComponent::IsLocallyInstigated(const UInteractorComponent* Int
 {
 	if (!IsValid(Interactor))
 		return false;
+	
 	const APawn* OwningPawn = Cast<APawn>(Interactor->GetOwner());
-	return OwningPawn->IsLocallyControlled();
+	
+	return OwningPawn && OwningPawn->IsLocallyControlled();
 }
