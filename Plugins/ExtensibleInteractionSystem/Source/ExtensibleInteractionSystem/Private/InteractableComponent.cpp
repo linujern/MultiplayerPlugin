@@ -169,22 +169,6 @@ const UInteractionRuleset* UInteractableComponent::GetRuleset() const
 }
 
 // ============================================================
-// ONREP
-// ============================================================
-
-void UInteractableComponent::OnRep_InteractState()
-{
-	switch (InteractState)
-	{
-		case EInteractionState::Idle:
-			break;
-		case EInteractionState::Interacting:
-			break;
-	}
-	UE_LOG(LogInteract, Log, TEXT("OnRep_InteractState called on %s, new state: %s"), *GetOwner()->GetName(), *UEnum::GetValueAsString(InteractState));
-}
-
-// ============================================================
 // MULTICAST RPCs
 // ============================================================
 

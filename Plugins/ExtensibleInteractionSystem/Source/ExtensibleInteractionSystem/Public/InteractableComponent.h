@@ -204,21 +204,13 @@ private:
 	// OnRep_InteractionState handles the Interacting transition (BeginInteraction broadcast).
 	// Idle transitions are handled by Finished/Cancelled multicast RPCs instead,
 	// to ensure clients receive the event even if the state changes back to Idle immediately after.
-	UPROPERTY(ReplicatedUsing=OnRep_InteractState)
+	UPROPERTY(Replicated)
 	EInteractionState InteractState = EInteractionState::Idle;
 
 	// Replicated so clients receiving OnRep_InteractState can identify the interactor.
 	// Must be set before InteractState to avoid a null interactor on the broadcast.
-	// TODO: make into TArray to support multiple simultaneous interactors.
 	UPROPERTY(Replicated)
 	TArray<TObjectPtr<UInteractorComponent>> CurrentInteractors; 
-
-	// ============================================================
-	// OnRep
-	// ============================================================
-	
-	UFUNCTION()
-	void OnRep_InteractState();
 
 	// ============================================================
 	// Helpers
