@@ -3,6 +3,7 @@
 #include "InteractionRuleset.h"
 #include "InteractionFocusHandler.h"
 #include "InteractionProgressHandler.h"
+#include "InteractionRegulationHandler.h"
 #include "InteractionSettings.h"
 #include "LogInteractionSystem.h"
 #include "Net/UnrealNetwork.h"
@@ -26,36 +27,36 @@ void UInteractableComponent::BeginPlay()
 	if(GetNetMode() == NM_DedicatedServer)
 		return;
 
+	if(!bFallBackToDefaultHandlers)
+		return;
+	
 	// Maybe this could all be a clean lambda. I couldn't figure it out though, so it'll have to be repetitive for now. At least it's straightforward to read.
 	const UInteractionSettings* Settings = GetDefault<UInteractionSettings>();
 
-	// Local Focus Handlers
-	for (const TSubclassOf<UInteractionFocusHandler>& Class : LocalFocusHandlerClasses)
-		if (Class) LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Class));
+	// Local Focus Handler
 	if (LocalFocusHandlers.IsEmpty() && Settings)
 		if (auto Default = Settings->GetDefaultLocalFocusHandlerClass())
 			LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Default));
 
-	// Global Focus Handlers
-	for (const TSubclassOf<UInteractionFocusHandler>& Class : GlobalFocusHandlerClasses)
-		if (Class) GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Class));
+	// Global Focus Handler
 	if (GlobalFocusHandlers.IsEmpty() && Settings)
 		if (auto Default = Settings->GetDefaultGlobalFocusHandlerClass())
 			GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Default));
 
-	// Local Progress Handlers
-	for (const TSubclassOf<UInteractionProgressHandler>& Class : LocalProgressHandlerClasses)
-		if (Class) LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Class));
+	// Local Progress Handler
 	if (LocalProgressHandlers.IsEmpty() && Settings)
 		if (auto Default = Settings->GetDefaultLocalProgressHandlerClass())
 			LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Default));
 
-	// Global Progress Handlers
-	for (const TSubclassOf<UInteractionProgressHandler>& Class : GlobalProgressHandlerClasses)
-		if (Class) GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Class));
+	// Global Progress Handler
 	if (GlobalProgressHandlers.IsEmpty() && Settings)
 		if (auto Default = Settings->GetDefaultGlobalProgressHandlerClass())
 			GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Default));
+
+	// Regulation Handler
+	if (!RegulationHandler && Settings)
+		if (auto Default = Settings->GetDefaultRegulationHandlerClass())
+			RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
 }
 
 void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -63,7 +64,7 @@ void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(UInteractableComponent, InteractState);
-	DOREPLIFETIME(UInteractableComponent, CurrentInteractor);
+	DOREPLIFETIME(UInteractableComponent, CurrentInteractors);
 }
 
 // ============================================================
@@ -72,36 +73,32 @@ void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 // via UInteractorComponent's Server RPCs
 // ============================================================
 
-void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor)
+void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, float ProgressPercent)
 {
 	// CurrentInteractor must be set before the InteractState to ensure it arrives first in the
 	// replication bunch, since OnRep_InteractState reads it.
-	CurrentInteractor = Interactor;
-	InteractState = EInteractionState::Interacting;
+	CurrentInteractors.AddUnique(Interactor);
+	if(CurrentInteractors.Num() > 0)
+		InteractState = EInteractionState::Interacting;
 
 	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
 		GlobalProgressHandler->HandleInteractionStart(this, Interactor, 0.f);
 
-	// OnRep does not fire on server, so the delegate is broadcast directly for any server-side listeners.
+	Multicast_OnInteractionBegun(Interactor, ProgressPercent);
 	OnBeginInteraction.Broadcast(Interactor);
-
-	Multicast_OnInteractionBeginning(Interactor, 0.f);
 }
 
 void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor, float ProgressPercent)
 {
-	CurrentInteractor = nullptr;
+	CurrentInteractors.Remove(Interactor);
 	InteractState = EInteractionState::Idle;
-
-	// TODO: Decrement AllowedTriggers and begin Cooldown timer
-
-	// Multicast fires on server and all clients, no separate server broadcast is needed.
+	
 	Multicast_OnInteractionFinished(Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor, float ProgressPercent)
 {
-	CurrentInteractor = nullptr;
+	CurrentInteractors.Remove(Interactor);
 	InteractState = EInteractionState::Idle;
 	
 	Multicast_OnInteractionCancelled(Interactor, ProgressPercent);
@@ -180,12 +177,8 @@ void UInteractableComponent::OnRep_InteractState()
 	switch (InteractState)
 	{
 		case EInteractionState::Idle:
-			// Deliberately empty - Finished and Cancelled arrive via multicast RPCs rather than state change
 			break;
 		case EInteractionState::Interacting:
-			// CurrentInteractor should be valid here as it replicates alongside InteractState.
-			// In rare cases it might not, meaning the broadcast can fire with nullptr - handlers should be robust to this possibility.
-			OnBeginInteraction.Broadcast(CurrentInteractor);
 			break;
 	}
 	UE_LOG(LogInteract, Log, TEXT("OnRep_InteractState called on %s, new state: %s"), *GetOwner()->GetName(), *UEnum::GetValueAsString(InteractState));
@@ -194,6 +187,19 @@ void UInteractableComponent::OnRep_InteractState()
 // ============================================================
 // MULTICAST RPCs
 // ============================================================
+
+void UInteractableComponent::Multicast_OnInteractionBegun_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
+{
+	OnBeginInteraction.Broadcast(Interactor);	
+
+	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionBegun called on %s"), *GetOwner()->GetName());
+
+	if(IsLocallyInstigated(Interactor))
+		return;
+	
+	for (const auto& ProgressHandler : GlobalProgressHandlers)
+		ProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
+}
 
 void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
@@ -246,15 +252,6 @@ void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractor
 	
 	for (const auto& ProgressHandler : GlobalProgressHandlers)
 		ProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
-}
-
-void UInteractableComponent::Multicast_OnInteractionBeginning_Implementation(UInteractorComponent* Interactor, float ProgressPercent)
-{
-	if(IsLocallyInstigated(Interactor))
-		return;
-	
-	for (const auto& ProgressHandler : GlobalProgressHandlers)
-		ProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
 // ============================================================

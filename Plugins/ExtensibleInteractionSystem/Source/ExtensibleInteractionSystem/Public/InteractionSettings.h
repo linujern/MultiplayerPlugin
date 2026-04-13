@@ -3,6 +3,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "InteractionSettings.generated.h"
 
+class UInteractionRegulationHandler;
 class UInteractionRuleset;
 class UInteractionFocusHandler;
 class UInteractionProgressHandler;
@@ -38,7 +39,11 @@ public:
 	// Always a UInteractionProgressHandler subclass.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
 	TSoftClassPtr<UInteractionProgressHandler> DefaultGlobalProgressHandlerClass;
-
+	// The default RegulationHandler class to instantiate. Controls whether interactions and focus can occur.
+	// Always a UInteractionRegulationHandler subclass.
+	UPROPERTY(Config, EditAnywhere, Category="Interaction")
+	TSoftClassPtr<UInteractionRegulationHandler> DefaultRegulationHandlerClass;
+	
 	UFUNCTION()
 	UInteractionRuleset* GetDefaultRuleset() const;
 	UFUNCTION()
@@ -51,4 +56,6 @@ public:
 	TSubclassOf<UInteractionProgressHandler> GetDefaultLocalProgressHandlerClass() const;
 	UFUNCTION()
 	TSubclassOf<UInteractionProgressHandler> GetDefaultGlobalProgressHandlerClass() const;
+	UFUNCTION()
+	TSubclassOf<UInteractionRegulationHandler> GetDefaultRegulationHandlerClass() const;
 };

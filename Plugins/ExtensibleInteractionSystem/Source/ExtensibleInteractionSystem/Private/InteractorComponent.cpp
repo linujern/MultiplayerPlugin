@@ -311,10 +311,7 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 
 	UE_LOG(LogInteract, Log, TEXT("Server_StartInteracting called on %s, requested interaction with: %s"), *GetOwner()->GetName(), *Target->GetName());
 
-	// TODO: validation logic for whether this interaction should be allowed, based on the ruleset and current game state
-	// TODO: allowedtriggers check
-
-	Target->BeginInteraction(this);
+	Target->BeginInteraction(this, InteractionProgress);
 
 	// The server doesn't receive OnRep callbacks, so CurrentInteractingWith must be set directly here to allow
 	// Server_RequestFinishInteraction and Server_CancelInteraction to route correctly.

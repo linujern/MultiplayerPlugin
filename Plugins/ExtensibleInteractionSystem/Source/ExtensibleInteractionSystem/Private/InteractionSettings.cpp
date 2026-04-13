@@ -3,6 +3,7 @@
 #include "InteractionTracer.h"
 #include "InteractionFocusHandler.h"
 #include "InteractionProgressHandler.h"
+#include "InteractionRegulationHandler.h"
 
 UInteractionSettings::UInteractionSettings()
 {
@@ -37,4 +38,9 @@ TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultLocalPr
 TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultGlobalProgressHandlerClass() const
 {
 	return DefaultGlobalProgressHandlerClass.LoadSynchronous();
+}
+
+TSubclassOf<UInteractionRegulationHandler> UInteractionSettings::GetDefaultRegulationHandlerClass() const
+{
+	return DefaultRegulationHandlerClass.LoadSynchronous();
 }

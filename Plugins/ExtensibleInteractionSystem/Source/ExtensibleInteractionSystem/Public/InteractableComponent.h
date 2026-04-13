@@ -7,6 +7,7 @@ class UInteractorComponent;
 class UInteractionRuleset;
 class UInteractionFocusHandler;
 class UInteractionProgressHandler;
+class UInteractionRegulationHandler;
 
 // ============================================================
 // ENUMS
@@ -69,7 +70,7 @@ public:
 	// ============================================================
 	
 	// Called by UInteractionComponent::Server_StartInteracting. Server-side only
-	void BeginInteraction(UInteractorComponent* Interactor);
+	void BeginInteraction(UInteractorComponent* Interactor, float ProgressPercent);
 	// Called by UInteractorComponent::Server_RequestFinishInteraction. Server-side only
 	void FinishInteraction(UInteractorComponent* Interactor, float ProgressPercent);
 	// Called by UInteractionComponent::Server_CancelInteraction. Server-side only
@@ -140,6 +141,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<UInteractionRuleset> InstanceRuleset;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Interaction")
+	bool bFallBackToDefaultHandlers = true;
+
 	// ============================================================
 	// Focus Handlers
 	//
@@ -148,29 +152,16 @@ protected:
 	// Global handlers fire on all clients via NetMulticast (e.g. world-space widget appearing).
 	//
 	// If no classes are set, the project default from UInteractionSettings is used.
-	// Handlers are instantiated at BeginPlay from their respective class arrays.
 	// ============================================================
-	
+
 	// The classes which dictate behaviour related to the focused state of this component, as seen by the local player.
-	// For visuals that all players should see, use the GlobalFocusHandlerClasses field instead.
-	// Selected classes must inherit UInteractionFocusHandler.
-	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
-	TArray<TSubclassOf<UInteractionFocusHandler>> LocalFocusHandlerClasses;
-
-	// These are instantiated from the LocalFocusHandlerClasses array at runtime, and handle visual focus events for the local player
 	// (such as highlighting that the object can be interacted with).
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionFocusHandler>> LocalFocusHandlers;
-	
-	// The classes which dictate behaviour related to the focused state of this component, as seen by *ALL* players.
-	// For visuals that only the local player should see, use the LocalFocusHandlerClasses field instead.
-	// Selected classes must inherit UInteractionFocusHandler.
-	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
-	TArray<TSubclassOf<UInteractionFocusHandler>> GlobalFocusHandlerClasses;
 
-	// These are instantiated from the GlobalFocusHandlerClasses array at runtime, and handle visual focus events that all players should see
+	// The classes which dictate behaviour related to the focused state of this component, as seen by *ALL* players.
 	// (such as a world-space widget appearing above the object when focused).
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionFocusHandler>> GlobalFocusHandlers;
 
 	// ============================================================
@@ -178,35 +169,31 @@ protected:
 	//
 	// ProgressHandlers Receive callbacks as interaction progresses.
 	// Local handlers fire only on the focus client (e.g. progress bar widget).
-	// Global handlers fire on all clients via NetMulticast (e.g. shared world-space sprogress).
+	// Global handlers fire on all clients via NetMulticast (e.g. shared world-space progress).
 	//
 	// If no classes are set, the project default from UInteractionSettings is used.
-	// Handlers are instantiated at BeginPlay from their respective class arrays.
 	// ============================================================
 	
 	// The classes which dictate behaviour related to the completion progress the interactor experiences when interacting with this component.
-	// Only the interacting player can see this. For visuals all players should see, use the GlobalProgressHandlerClasses field.
-	// Selected class must inherit UInteractionProgressHandler.
-	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
-	TArray<TSubclassOf<UInteractionProgressHandler>> LocalProgressHandlerClasses;
-
-	// These are instantiated from the LocalProgressHandlerClasses array at runtime,
-	// and handle visual events related to the progression of interaction for the interacting player only
+	// Handle visual events related to the progression of interaction for the interacting player only
 	// (such as a progress bar widget filling towards 100% as the player holds the interact key).
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionProgressHandler>> LocalProgressHandlers;
 
 	// The classes which dictate behaviour related to the completion progress the interactor experiences when interacting with this component.
-	// All players can see this, not just the interacting player. For visuals only the interacting player should see, use the LocalProgressHandlerClasses field.
-	// Selected class must inherit UInteractionProgressHandler.
-	UPROPERTY(EditDefaultsOnly, Category = "Interaction")
-	TArray<TSubclassOf<UInteractionProgressHandler>> GlobalProgressHandlerClasses;
-
-	// These are instantiated from the GlobalProgressHandlerClasses array at runtime,
-	// and handle visual events related to the progression of interaction that all players can see
+	// Handle visual events related to the progression of interaction that all players can see
 	// (such as a progress bar widget filling towards 100% as one player holds the interact key).
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionProgressHandler>> GlobalProgressHandlers;
+
+	// ============================================================
+	// RegulationHandler
+	//
+	//
+	// ============================================================
+	
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	TObjectPtr<UInteractionRegulationHandler> RegulationHandler;
 
 private:
 	// ============================================================
@@ -224,7 +211,7 @@ private:
 	// Must be set before InteractState to avoid a null interactor on the broadcast.
 	// TODO: make into TArray to support multiple simultaneous interactors.
 	UPROPERTY(Replicated)
-	TObjectPtr<UInteractorComponent> CurrentInteractor; 
+	TArray<TObjectPtr<UInteractorComponent>> CurrentInteractors; 
 
 	// ============================================================
 	// OnRep
@@ -244,6 +231,10 @@ private:
 	// Multicast RPCs
 	// ============================================================
 
+	// Called by BeginInteraction
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_OnInteractionBegun(UInteractorComponent* Interactor, float ProgressPercent);
+	
 	// Called by FinishInteraction.
 	// Must be Reliable because it represents authoritative state changes that must not be missed.
 	UFUNCTION(NetMulticast, Reliable)
@@ -253,9 +244,6 @@ private:
 	// Must be Reliable because it represents authoritative state changes that must not be missed.
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnInteractionCancelled(UInteractorComponent* Interactor, float ProgressPercent);
-
-	UFUNCTION(NetMulticast, Unreliable)
-	void Multicast_OnInteractionBeginning(UInteractorComponent* Interactor, float ProgressPercent);
 	
 public:
 	// Called by UInteractorComponent::Server_NotifyFocusGained
