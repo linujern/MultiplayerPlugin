@@ -110,7 +110,7 @@ void UInteractorComponent::TickTrace()
 	if(!InteractionTracer)
 		return;
 	
-	UInteractableComponent* Found = InteractionTracer->FindBestInteractable(GetOwner());
+	UInteractableComponent* Found = InteractionTracer->FindBestInteractable(GetOwner(), this);
 	UpdateCurrentFocusedInteractable(Found);
 }
 
@@ -119,7 +119,7 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 	if (CurrentFocusedInteractable == NewFocused)
 		return;
 
-	if(IsValid(NewFocused) && !NewFocused->IsFocusable())
+	if(IsValid(NewFocused) && !NewFocused->IsFocusable(this))
 		return;
 	
 	// Notify the old interactable it lost focus, and the new one that it gained focus.
@@ -303,7 +303,7 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 		return;
 	}
 
-	if(!Target->IsInteractable())
+	if(!Target->IsInteractable(this))
 	{
 		Client_InteractionRejected();
 		return;

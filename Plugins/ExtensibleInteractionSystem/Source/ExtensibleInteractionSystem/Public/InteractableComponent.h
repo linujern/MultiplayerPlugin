@@ -1,5 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "InteractorComponent.h"
 #include "Components/ActorComponent.h"
 #include "InteractableComponent.generated.h"
 
@@ -107,10 +108,10 @@ public:
 
 	// Returns whether this component can be focused, checking 1: Local override, 2: Ruleset Override, 3: RegulationHandler
 	UFUNCTION(BlueprintCallable, Category = "InteractionSystem")
-	bool IsFocusable() const;
+	bool IsFocusable(UInteractorComponent* Interactor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "InteractionSystem")
-	bool IsInteractable() const;
+	bool IsInteractable(UInteractorComponent* Interactor) const;
 
 	// ============================================================
 	// Delegates
@@ -197,7 +198,9 @@ protected:
 	// ============================================================
 	// RegulationHandler
 	//
-	//
+	// The RegulationHandler receives callbacks from interaction events.
+	// It uses these callbacks to gate interactions via the CanBeFocused and CanInteract checks.
+	// Both of these have global (all players) and local (per-player) methods.
 	// ============================================================
 	
 	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)

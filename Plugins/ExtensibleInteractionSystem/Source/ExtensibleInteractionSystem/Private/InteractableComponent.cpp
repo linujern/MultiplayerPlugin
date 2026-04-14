@@ -187,7 +187,7 @@ const UInteractionRuleset* UInteractableComponent::GetRuleset() const
 	return GetDefault<UInteractionRuleset>();
 }
 
-bool UInteractableComponent::IsFocusable() const
+bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor) const
 {
 	if(bDisableFocus)
 		return false;
@@ -196,13 +196,22 @@ bool UInteractableComponent::IsFocusable() const
 	if(Ruleset && Ruleset->bDisableFocus)
 		return false;
 
-	if(IsValid(RegulationHandler))
-		return RegulationHandler->CanBeFocused();
+	if (IsValid(RegulationHandler))
+	{
+		// Global — reads replicated state, same result for all players
+		if (!RegulationHandler->CanBeFocused_Global(this, Interactor))
+			return false;
+
+		// Local — reads per-player state, can differ per client
+		if (!RegulationHandler->CanBeFocused_Local(this, Interactor))
+			return false;
+	}
+		
 
 	return true;
 }
 
-bool UInteractableComponent::IsInteractable() const
+bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor) const
 {
 	if(bDisableInteraction)
 		return false;
@@ -212,7 +221,13 @@ bool UInteractableComponent::IsInteractable() const
 		return false;
 
 	if(IsValid(RegulationHandler))
-		return RegulationHandler->CanInteract();
+	{
+		if(!RegulationHandler->CanInteract_Global(this, Interactor))
+			return false;
+
+		if(!RegulationHandler->CanInteract_Local(this, Interactor))
+			return false;
+	}
 
 	return true;
 }

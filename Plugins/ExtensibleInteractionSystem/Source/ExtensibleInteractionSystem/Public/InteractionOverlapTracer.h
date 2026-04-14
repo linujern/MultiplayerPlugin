@@ -1,7 +1,10 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "InteractionTracer.h"
+#include "InteractorComponent.h"
 #include "InteractionOverlapTracer.generated.h"
+
+class UInteractorComponent;
 
 UENUM(BlueprintType)
 enum class ETracerDirectionSource : uint8
@@ -51,8 +54,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction|Tracer")
 	TEnumAsByte<ECollisionChannel> TraceChannel = ECC_Visibility;
 
-	virtual UInteractableComponent* FindBestInteractable_Implementation(AActor* Owner) override;
+	virtual UInteractableComponent* FindBestInteractable_Implementation(AActor* Owner, UInteractorComponent* Interactor) override;
 
 private:
 	void GetTraceOriginAndDirection(AActor* Owner, FVector& OutOrigin, FVector& OutForward) const;
+
+	bool bInitialized = false;
+	UWorld* WorldRef = nullptr;
 };

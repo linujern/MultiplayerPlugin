@@ -7,15 +7,17 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 
-UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implementation(AActor* Owner)
+UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implementation(AActor* Owner, UInteractorComponent* Interactor)
 {
-    if(!IsValid(Owner))
+    if(!IsValid(Owner) || !IsValid(Interactor))
         return nullptr;
 
-    const UWorld* World = Owner->GetWorld();
-    if(!World)
+    if(!bInitialized)
+        WorldRef = Owner->GetWorld();
+    
+    if(!WorldRef)
         return nullptr;
-
+    
     FVector Origin;
     FVector Forward;
     GetTraceOriginAndDirection(Owner, Origin, Forward);
@@ -25,7 +27,7 @@ UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implemen
     FCollisionQueryParams QueryParams;
     QueryParams.AddIgnoredActor(Owner);
     
-    World->OverlapMultiByChannel(
+    WorldRef->OverlapMultiByChannel(
         Overlaps,
         Origin,
         FQuat::Identity,
@@ -49,7 +51,7 @@ UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implemen
             continue;
 
         // Respect the focusable flag
-        if(!Interactable->IsFocusable())
+        if(!Interactable->IsFocusable(Interactor))
             continue;
 
         // Direction from trace origin to the candidate's root location
