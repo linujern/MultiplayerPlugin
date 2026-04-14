@@ -105,6 +105,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "InteractionSystem")
 	const UInteractionRuleset* GetRuleset() const;
 
+	// Returns whether this component can be focused, checking 1: Local override, 2: Ruleset Override, 3: RegulationHandler
+	UFUNCTION(BlueprintCallable, Category = "InteractionSystem")
+	bool IsFocusable() const;
+
+	UFUNCTION(BlueprintCallable, Category = "InteractionSystem")
+	bool IsInteractable() const;
+
 	// ============================================================
 	// Delegates
 	// Broadcast on all clients via OnRep (Begin), or NetMulticast (Finish, Cancel).
@@ -121,15 +128,6 @@ public:
 	FOnFocusGained OnFocusGained;
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnFocusLost OnFocusLost;
-
-	// ============================================================
-	// Runtime Flag
-	// ============================================================
-
-	// Toggles interactability at runtime regardless of ruleset. Does not affect focus events.
-	// Use this to gate interaction via gameplay logic (e.g. a puzzle prerequisite).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
-	bool bCanInteract = true;
 	
 protected:
 
@@ -143,6 +141,16 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Interaction")
 	bool bFallBackToDefaultHandlers = true;
+	
+	// Toggles interactability at runtime regardless of ruleset. Overrides RegulationHandler if true. Does not affect focus events.
+	// Use this to gate interaction on a per-instance basis via gameplay logic (e.g. a puzzle prerequisite).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	bool bDisableInteraction = false;
+
+	// Toggles focusability at runtime regardless of ruleset. Overrides RegulationHandler if true.
+	// Use this to gate interaction on a per-instance basis via gameplay logic (e.g. a puzzle prerequisite).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	bool bDisableFocus = false;
 
 	// ============================================================
 	// Focus Handlers

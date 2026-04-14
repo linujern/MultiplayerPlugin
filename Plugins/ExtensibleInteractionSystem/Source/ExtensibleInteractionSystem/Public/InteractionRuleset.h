@@ -9,11 +9,13 @@ class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionRuleset : public UPrimaryDataA
 	GENERATED_BODY()
 
 public:
+	// Overrides RegulationHandler if true.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	bool bIsInteractable = true;
+	bool bDisableInteraction = false;
 
+	// Overrides RegulationHandler if true.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	bool bCanBeFocused = true;
+	bool bDisableFocus = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
 	float SecondsToTrigger = 1.f;
@@ -25,11 +27,4 @@ public:
 	// Prevents flooding with small updates when progress is changing very frequently (e.g. every tick).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
 	float GlobalProgressUpdateThreshold = .05f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	float CooldownSeconds = 0.f;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Interaction Ruleset")
-	int32 AllowedTriggers = -1; // negative values for infinite
-	
 };

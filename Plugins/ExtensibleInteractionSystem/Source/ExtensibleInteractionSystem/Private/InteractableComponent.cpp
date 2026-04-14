@@ -81,9 +81,8 @@ void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, 
 	if(CurrentInteractors.Num() == 1)
 		InteractState = EInteractionState::Interacting;
 
-	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		if(GlobalProgressHandler)
-			GlobalProgressHandler->HandleInteractionStart(this, Interactor, 0.f);
+	if (RegulationHandler)
+		RegulationHandler->OwnerInteractStart(this, Interactor);
 	
 	OnBeginInteraction.Broadcast(Interactor);
 }
@@ -94,6 +93,9 @@ void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor,
 	
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
+
+	if (RegulationHandler)
+		RegulationHandler->OwnerInteractFinish(this, Interactor);
 	
 	Multicast_OnInteractionFinished(Interactor, ProgressPercent);
 }
@@ -104,6 +106,9 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 	
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
+
+	if (RegulationHandler)
+		RegulationHandler->OwnerInteractCancel(this, Interactor);
 	
 	Multicast_OnInteractionCancelled(Interactor, ProgressPercent);
 }
@@ -120,6 +125,9 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 	for (const auto& LocalFocusHandler : LocalFocusHandlers)
 		if (LocalFocusHandler)
 			LocalFocusHandler->HandleFocusGained(this, Interactor);
+
+	if (RegulationHandler)
+		RegulationHandler->OwnerFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
@@ -129,6 +137,9 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 	for (const auto& LocalFocusHandler : LocalFocusHandlers)
 		if (LocalFocusHandler)
 			LocalFocusHandler->HandleFocusLost(this, Interactor);
+
+	if (RegulationHandler)
+		RegulationHandler->OwnerFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -154,7 +165,6 @@ void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, co
 
 void UInteractableComponent::UpdateProgress(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	UE_LOG(LogInteract, Log, TEXT("LocalProgressHandler index 0 is: %s."), LocalProgressHandlers[0] ? *LocalProgressHandlers[0]->GetName() : TEXT("null"));
 	for (const auto& LocalProgressHandler : LocalProgressHandlers)
 		if (LocalProgressHandler)
 			LocalProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
@@ -177,6 +187,36 @@ const UInteractionRuleset* UInteractableComponent::GetRuleset() const
 
 	//Step 3: CDO hard-coded fallback - always valid, holds the property defaults
 	return GetDefault<UInteractionRuleset>();
+}
+
+bool UInteractableComponent::IsFocusable() const
+{
+	if(bDisableFocus)
+		return false;
+
+	const UInteractionRuleset* Ruleset = GetRuleset();
+	if(Ruleset && Ruleset->bDisableFocus)
+		return false;
+
+	if(IsValid(RegulationHandler))
+		return RegulationHandler->CanBeFocused();
+
+	return true;
+}
+
+bool UInteractableComponent::IsInteractable() const
+{
+	if(bDisableInteraction)
+		return false;
+
+	const UInteractionRuleset* Ruleset = GetRuleset();
+	if(Ruleset && Ruleset->bDisableInteraction)
+		return false;
+
+	if(IsValid(RegulationHandler))
+		return RegulationHandler->CanInteract();
+
+	return true;
 }
 
 // ============================================================

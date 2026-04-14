@@ -1,6 +1,7 @@
 #include "InteractorComponent.h"
 #include "InteractableComponent.h"
 #include "InteractionRuleset.h"
+#include "InteractionSettings.h"
 #include "InteractionTracer.h"
 #include "LogInteractionSystem.h"
 
@@ -26,7 +27,8 @@ void UInteractorComponent::BeginPlay()
 
 	if (!InteractionTracer)
 	{
-		// TODO: fallback to the UInteractionSettings DefaultTracerClass
+		const UInteractionSettings* Settings = GetDefault<UInteractionSettings>();
+		InteractionTracer = NewObject<UInteractionTracer>(this, Settings->GetDefaultTracerClass());
 	}
 }
 
@@ -115,6 +117,9 @@ void UInteractorComponent::TickTrace()
 void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableComponent* NewFocused)
 {
 	if (CurrentFocusedInteractable == NewFocused)
+		return;
+
+	if(IsValid(NewFocused) && !NewFocused->IsFocusable())
 		return;
 	
 	// Notify the old interactable it lost focus, and the new one that it gained focus.
@@ -298,9 +303,7 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 		return;
 	}
 
-	const UInteractionRuleset* Ruleset = Target->GetRuleset();
-
-	if(Ruleset && !Ruleset->bIsInteractable)
+	if(!Target->IsInteractable())
 	{
 		Client_InteractionRejected();
 		return;

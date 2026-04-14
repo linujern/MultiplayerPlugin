@@ -48,8 +48,8 @@ UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implemen
         if(!IsValid(Interactable))
             continue;
 
-        // Respect the runtime interactability flag
-        if(!Interactable->bCanInteract)
+        // Respect the focusable flag
+        if(!Interactable->IsFocusable())
             continue;
 
         // Direction from trace origin to the candidate's root location
@@ -72,7 +72,6 @@ UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implemen
 
 void UInteractionOverlapTracer::GetTraceOriginAndDirection(AActor* Owner, FVector& OutOrigin, FVector& OutForward) const
 {
-	
 	// Establish defaults so every branch only needs to override what it handles
     OutOrigin = Owner->GetActorLocation();
     OutForward = Owner->GetActorForwardVector();
