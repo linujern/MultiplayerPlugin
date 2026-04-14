@@ -14,7 +14,18 @@ class IInteractionWidgetInterface
 {
     GENERATED_BODY()
     
-public: 
+public:
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
-    void InteractionUpdate(UInteractorComponent* Interactor, float CompletionPercent);
+    void FocusGained(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+    void FocusLost(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+    void InteractProgress(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float Progress);
+
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+    void InteractStart(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+    void InteractFinish(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+    void InteractCancel(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 };
