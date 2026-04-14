@@ -75,8 +75,6 @@ void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 
 void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, float ProgressPercent)
 {
-	// CurrentInteractor must be set before the InteractState to ensure it arrives first in the
-	// replication bunch, since OnRep_InteractState reads it.
 	CurrentInteractors.AddUnique(Interactor);
 	if(CurrentInteractors.Num() == 1)
 		InteractState = EInteractionState::Interacting;
@@ -84,7 +82,7 @@ void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, 
 	if (RegulationHandler)
 		RegulationHandler->OwnerInteractStart(this, Interactor);
 	
-	OnBeginInteraction.Broadcast(Interactor);
+	Multicast_OnInteractionBegun(Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor, float ProgressPercent)
@@ -139,7 +137,7 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 			LocalFocusHandler->HandleFocusLost(this, Interactor);
 
 	if (RegulationHandler)
-		RegulationHandler->OwnerFocusGained(this, Interactor);
+		RegulationHandler->OwnerFocusLost(this, Interactor);
 }
 
 void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -225,7 +223,8 @@ bool UInteractableComponent::IsInteractable() const
 
 void UInteractableComponent::Multicast_OnInteractionBegun_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	OnBeginInteraction.Broadcast(Interactor);	
+	
+	OnBeginInteraction.Broadcast(Interactor);
 
 	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionBegun called on %s"), *GetOwner()->GetName());
 
@@ -282,7 +281,7 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 	
 	for (const auto& GlobalFocusHandler : GlobalFocusHandlers)
 		if(GlobalFocusHandler)
-			GlobalFocusHandler->HandleFocusGained(this, Interactor);
+			GlobalFocusHandler->HandleFocusLost(this, Interactor);
 }
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)

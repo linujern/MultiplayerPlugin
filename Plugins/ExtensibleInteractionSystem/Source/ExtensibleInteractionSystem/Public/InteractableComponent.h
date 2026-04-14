@@ -209,9 +209,6 @@ private:
 	// ============================================================
 
 	// EIntgeractionState replicates the persistent state of this interactable.
-	// OnRep_InteractionState handles the Interacting transition (BeginInteraction broadcast).
-	// Idle transitions are handled by Finished/Cancelled multicast RPCs instead,
-	// to ensure clients receive the event even if the state changes back to Idle immediately after.
 	UPROPERTY(Replicated)
 	EInteractionState InteractState = EInteractionState::Idle;
 
