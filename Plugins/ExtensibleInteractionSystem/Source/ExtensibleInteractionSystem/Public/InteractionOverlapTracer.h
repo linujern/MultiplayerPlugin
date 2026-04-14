@@ -30,7 +30,7 @@ enum class ETracerOriginSource : uint8
  * where pixel-perfect aiming is not expected.
  */
 
-UCLASS()
+UCLASS(EditInlineNew)
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionOverlapTracer : public UInteractionTracer
 {
 	GENERATED_BODY()
