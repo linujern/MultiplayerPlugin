@@ -1,18 +1,30 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "UObject/Object.h"
+#include "Components/ActorComponent.h"
 #include "InteractionRegulationHandler.generated.h"
 
 class UInteractableComponent;
 class UInteractorComponent;
 
+/**
+ * UInteractionRegulationHandler
+ *
+ * Controls whether an interactable can be focused or interacted with.
+ * Implement CanBeFocused and CanInteract to express custom gating logic such as cooldowns, trigger limits, or world-state conditions.
+ *
+ * Unlike other handler types, this is a UActorComponent subclass to support server-authoritative replicated state.
+ * It will appear in the owner actor's component list at runtime.
+ */
+
 UCLASS(Abstract, Blueprintable, EditInlineNew, ClassGroup=(Interaction))
-class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionRegulationHandler : public UObject
+class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionRegulationHandler : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 
+	UInteractionRegulationHandler();
+	
 	// ============================================================
 	// Gating Functions
 	// ============================================================
@@ -23,6 +35,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionRegulationHandler|Queries")
 	bool CanBeFocused_Local(const UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 	// Overwrite in blueprints or C++ to implement custom behaviour that regulates whether an interaction can occur.
+	// Reads local per-player state - result can differ per client.
+	// Use for per-player cooldowns, inventory checks, player-specific conditions.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionRegulationHandler|Queries")
 	bool CanInteract_Local(const UInteractableComponent* Interactable,  UInteractorComponent* Interactor);
 
@@ -32,6 +46,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionRegulationHandler|Queries")
 	bool CanBeFocused_Global(const UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 	// Overwrite in blueprints or C++ to implement custom behaviour that regulates whether an interaction can occur.
+	// Reads replicated state — must produce the same result on all clients.
+	// Use for global cooldowns, disabled states, world conditions.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionRegulationHandler|Queries")
 	bool CanInteract_Global(const UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 

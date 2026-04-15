@@ -1,6 +1,11 @@
 #include "InteractionRegulationHandler.h"
-#include "InteractorComponent.h"
-#include "InteractableComponent.h"
+
+UInteractionRegulationHandler::UInteractionRegulationHandler()
+{
+	SetIsReplicatedByDefault(true);
+
+	PrimaryComponentTick.bCanEverTick = false;
+}
 
 bool UInteractionRegulationHandler::CanBeFocused_Local_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) { return true; }
 bool UInteractionRegulationHandler::CanInteract_Local_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) { return true; }
