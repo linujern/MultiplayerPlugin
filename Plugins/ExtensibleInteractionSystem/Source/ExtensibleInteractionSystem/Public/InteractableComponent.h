@@ -46,7 +46,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusLost,		UInteractorComponent*
  * Add to any actor that should be interactable. Manages interaction state replication,
  * broadcasts delegates for gameplay logic, and dispatches visual events to Focus and Progress handlers.
  *
- * Interaction is initiated and terminated by UInteratorComponent via server-side entry points.
+ * Interaction is initiated and terminated by UInteractorComponent via server-side entry points.
  * Focus events are local-only and never replicated.
  *
  * Visual behaviour is configured via handler class arrays:
@@ -211,7 +211,7 @@ private:
 	// Replicated State
 	// ============================================================
 
-	// EIntgeractionState replicates the persistent state of this interactable.
+	// EInteractionState replicates the persistent state of this interactable.
 	UPROPERTY(Replicated)
 	EInteractionState InteractState = EInteractionState::Idle;
 

@@ -1,7 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "InteractionTracer.h"
-#include "InteractorComponent.h"
 #include "InteractionOverlapTracer.generated.h"
 
 class UInteractorComponent;
@@ -58,7 +57,4 @@ public:
 
 private:
 	void GetTraceOriginAndDirection(AActor* Owner, FVector& OutOrigin, FVector& OutForward) const;
-
-	bool bInitialized = false;
-	UWorld* WorldRef = nullptr;
 };

@@ -1,6 +1,5 @@
-#include "InteractionOverlapTracer.h"
+#include "Samples/InteractionOverlapTracer.h"
 #include "InteractableComponent.h"
-#include "InteractionRegulationHandler.h"
 #include "LogInteractionSystem.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/OverlapResult.h"
@@ -12,8 +11,8 @@ UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implemen
     if(!IsValid(Owner) || !IsValid(Interactor))
         return nullptr;
 
-    if(!bInitialized)
-        WorldRef = Owner->GetWorld();
+
+    const UWorld* WorldRef = Owner->GetWorld();
     
     if(!WorldRef)
         return nullptr;

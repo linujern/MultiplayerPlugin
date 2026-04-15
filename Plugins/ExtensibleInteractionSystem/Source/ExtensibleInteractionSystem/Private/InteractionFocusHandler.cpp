@@ -1,6 +1,5 @@
 #include "InteractionFocusHandler.h"
 #include "InteractorComponent.h"
-#include "InteractableComponent.h"
 #include "LogInteractionSystem.h"
 
 // Overwrite in Blueprints to implement custom focus behavior. By default, they just log focus changes to demonstrate functionality.
