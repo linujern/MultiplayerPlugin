@@ -13,13 +13,12 @@ class UCooldownLocalStateComponent;
  * Supports two independent cooldown modes:
  *
  * Global cooldown: Locks the interactable for ALL players for a set duration.
- *   State is stored as a replicated property on this component, keeping all
- *   clients in sync without any additional replication infrastructure.
+ * State is stored as a replicated property on this component, keeping all
+ * clients in sync without any additional replication infrastructure.
  *
  * Per-player cooldown: Locks the interactable only for the player who triggered it.
- *   State is managed via UCooldownLocalStateComponent, a satellite component
- *   spawned onto the player's pawn. This component is entirely self-contained
- *   and invisible to the core interaction system.
+ * State is managed via UCooldownLocalStateComponent, a satellite component spawned onto the player's pawn.
+ * This component is entirely self-contained and invisible to the core interaction system.
  *
  * Either or both cooldown types can be used simultaneously.
  * Set a duration to 0 to disable that cooldown type.
@@ -51,8 +50,8 @@ public:
 	//	UInteractionRegulationComponent Interface
 	// --------------------------------------------------------------------------------------------
 	
-	virtual bool CanBeFocused_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
-	virtual bool CanBeFocused_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
+	virtual bool CanInteract_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
+	virtual bool CanInteract_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
 	virtual void OwnerInteractFinish_Implementation(UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
 
 private:

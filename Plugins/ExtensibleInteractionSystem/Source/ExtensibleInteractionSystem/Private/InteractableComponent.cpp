@@ -9,8 +9,9 @@
 
 UInteractableComponent::UInteractableComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 	SetIsReplicatedByDefault(true);
+	UActorComponent::SetComponentTickEnabled(false);
 }
 
 // ============================================================
@@ -54,6 +55,28 @@ void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty
 	DOREPLIFETIME(UInteractableComponent, InteractState);
 	DOREPLIFETIME(UInteractableComponent, CurrentInteractors);
 }
+
+void UInteractableComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	// Only run on the local interactor
+	if(!IsValid(CachedLocalFocusInteractor))
+		return;
+
+	const bool bNewCanFocus = IsFocusable(CachedLocalFocusInteractor);
+	const bool bNewCanInteract = IsInteractable(CachedLocalFocusInteractor);
+
+	if (bNewCanFocus != bCachedCanFocus || bNewCanInteract != bCachedCanInteract)
+	{
+		bCachedCanFocus = bNewCanFocus;
+		bCachedCanInteract = bNewCanInteract;
+
+		for (auto& Handler : LocalVisualHandlers)
+			Handler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract);
+	}
+}
+
 
 // ============================================================
 // SERVER-SIDE ENTRY POINTS
@@ -106,54 +129,66 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 
 void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 {
+	// Enable tick only while focused — no wasted evaluation otherwise
+	SetComponentTickEnabled(true);
+
+	if (RegulationHandler)
+		RegulationHandler->OwnerFocusGained(this, Interactor);
+	
+	// Cache initial state so the first tick has something to diff against
+	bCachedCanFocus = IsFocusable(Interactor);
+	bCachedCanInteract = IsInteractable(Interactor);
+	CachedLocalFocusInteractor = Interactor;
+	
 	OnFocusGained.Broadcast(Interactor);
 
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleFocusGained(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
-
-	if (RegulationHandler)
-		RegulationHandler->OwnerFocusGained(this, Interactor);
+			LocalVisualHandler->HandleFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 {
+	SetComponentTickEnabled(false);
+
+	if (RegulationHandler)
+		RegulationHandler->OwnerFocusLost(this, Interactor);
+
+	CachedLocalFocusInteractor = nullptr;
+	
 	OnFocusLost.Broadcast(Interactor);
 	
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleFocusLost(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
-
-	if (RegulationHandler)
-		RegulationHandler->OwnerFocusLost(this, Interactor);
+			LocalVisualHandler->HandleFocusLost(this, Interactor);
 }
 
 void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleInteractionStart(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			LocalVisualHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& LocalVisualHandler  : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleInteractionCancelled(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			LocalVisualHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleInteractionFinished(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			LocalVisualHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::UpdateProgress(UInteractorComponent* Interactor, const float ProgressPercent)
 {
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleProgressUpdate(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			LocalVisualHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
 }
 
 // ============================================================
@@ -194,8 +229,7 @@ bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor) const
 		if (!RegulationHandler->CanBeFocused_Local(this, Interactor))
 			return false;
 	}
-		
-
+	
 	return true;
 }
 
@@ -236,7 +270,7 @@ void UInteractableComponent::Multicast_OnInteractionBegun_Implementation(UIntera
 	
 	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleInteractionStart(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			GlobalVisualHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -250,7 +284,7 @@ void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInt
 	
 	for(const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleInteractionFinished(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			GlobalVisualHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -264,7 +298,7 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 	
 	for(const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleInteractionCancelled(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			GlobalVisualHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorComponent* Interactor)
@@ -274,7 +308,7 @@ void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorCom
 	
 	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleFocusGained(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
+			GlobalVisualHandler->HandleFocusGained(this, Interactor);
 }
 
 void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorComponent* Interactor)
@@ -284,7 +318,7 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 	
 	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleFocusLost(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
+			GlobalVisualHandler->HandleFocusLost(this, Interactor);
 }
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -294,7 +328,7 @@ void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractor
 	
 	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleProgressUpdate(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
+			GlobalVisualHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
 }
 
 // ============================================================

@@ -63,6 +63,7 @@ public:
 	
 	virtual void BeginPlay() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	// ============================================================
 	// Server-Side Entry Points
@@ -195,7 +196,12 @@ private:
 	// Replicated so clients receiving OnRep_InteractState can identify the interactor.
 	// Must be set before InteractState to avoid a null interactor on the broadcast.
 	UPROPERTY(Replicated)
-	TArray<TObjectPtr<UInteractorComponent>> CurrentInteractors; 
+	TArray<TObjectPtr<UInteractorComponent>> CurrentInteractors;
+
+	// --- Local State Cache ---
+	bool bCachedCanFocus = true;
+	bool bCachedCanInteract = true;
+	UInteractorComponent* CachedLocalFocusInteractor = nullptr;
 
 	// ============================================================
 	// Helpers

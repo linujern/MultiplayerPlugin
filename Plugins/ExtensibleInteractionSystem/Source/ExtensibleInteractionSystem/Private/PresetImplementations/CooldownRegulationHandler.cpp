@@ -25,14 +25,14 @@ void UCooldownRegulationHandler::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 //	Gating Queries
 // ------------------------------------------------------------------------------------------------
 
-bool UCooldownRegulationHandler::CanBeFocused_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor)
+bool UCooldownRegulationHandler::CanInteract_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor)
 {
 	// Reads replicated GlobalCooldownExpiry — consistent result on all clients.
 	return
 		!IsGlobalCooldownActive();
 }
 
-bool UCooldownRegulationHandler::CanBeFocused_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor)
+bool UCooldownRegulationHandler::CanInteract_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor)
 {
 	if (PerPlayerCooldownSeconds <= 0.f)
 		return true;
