@@ -4,10 +4,9 @@
 #include "Components/ActorComponent.h"
 #include "InteractableComponent.generated.h"
 
+class UInteractionVisualHandler;
 class UInteractorComponent;
 class UInteractionRuleset;
-class UInteractionFocusHandler;
-class UInteractionProgressHandler;
 class UInteractionRegulationHandler;
 
 // ============================================================
@@ -154,46 +153,24 @@ protected:
 	bool bDisableFocus = false;
 
 	// ============================================================
-	// Focus Handlers
+	// Visual Handlers
 	//
-	// FocusHandlers Receive callback when this interactable gains or loses focus.
-	// Local handlers fire only on the focus client (e.g. stencil outline).
-	// Global handlers fire on all clients via NetMulticast (e.g. world-space widget appearing).
-	//
-	// If no classes are set, the project default from UInteractionSettings is used.
-	// ============================================================
-
-	// The classes which dictate behaviour related to the focused state of this component, as seen by the local player.
-	// (such as highlighting that the object can be interacted with).
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
-	TArray<TObjectPtr<UInteractionFocusHandler>> LocalFocusHandlers;
-
-	// The classes which dictate behaviour related to the focused state of this component, as seen by *ALL* players.
-	// (such as a world-space widget appearing above the object when focused).
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
-	TArray<TObjectPtr<UInteractionFocusHandler>> GlobalFocusHandlers;
-
-	// ============================================================
-	// Progress Handlers
-	//
-	// ProgressHandlers Receive callbacks as interaction progresses.
-	// Local handlers fire only on the focus client (e.g. progress bar widget).
-	// Global handlers fire on all clients via NetMulticast (e.g. shared world-space progress).
+	// VisualHandlers Receive callbacks related to focus and interaction progress.
+	// Local handlers fire only on the local interactor.
+	// Global handlers fire on all clients via NetMulticast.
 	//
 	// If no classes are set, the project default from UInteractionSettings is used.
 	// ============================================================
-	
-	// The classes which dictate behaviour related to the completion progress the interactor experiences when interacting with this component.
-	// Handle visual events related to the progression of interaction for the interacting player only
-	// (such as a progress bar widget filling towards 100% as the player holds the interact key).
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
-	TArray<TObjectPtr<UInteractionProgressHandler>> LocalProgressHandlers;
 
-	// The classes which dictate behaviour related to the completion progress the interactor experiences when interacting with this component.
-	// Handle visual events related to the progression of interaction that all players can see
-	// (such as a progress bar widget filling towards 100% as one player holds the interact key).
+	// The classes which dictate behaviour related to the focus/interaction state of this component, as seen by the local player.
+	// (such as highlighting a focused object or showing a widget).
 	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
-	TArray<TObjectPtr<UInteractionProgressHandler>> GlobalProgressHandlers;
+	TArray<TObjectPtr<UInteractionVisualHandler>> LocalVisualHandlers;
+
+	// The classes which dictate behaviour related to the focus/interaction state of this component, as seen by *ALL* players.
+	// (such as a world-space widget appearing above the object when focused or when interacted with).
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	TArray<TObjectPtr<UInteractionVisualHandler>> GlobalVisualHandlers;
 
 	// ============================================================
 	// RegulationHandler

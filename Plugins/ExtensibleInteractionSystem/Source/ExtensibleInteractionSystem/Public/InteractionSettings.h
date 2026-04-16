@@ -3,10 +3,9 @@
 #include "Engine/DeveloperSettings.h"
 #include "InteractionSettings.generated.h"
 
+class UInteractionVisualHandler;
 class UInteractionRegulationHandler;
 class UInteractionRuleset;
-class UInteractionFocusHandler;
-class UInteractionProgressHandler;
 class UInteractionTracer;
 
 UCLASS(Config=Game, DefaultConfig, Blueprintable, meta=(DisplayName="Interaction Settings"))
@@ -23,22 +22,14 @@ public:
 	// The default Tracer class to instantiate. Always a UInteractionTracer subclass.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
 	TSoftClassPtr<UInteractionTracer> DefaultTracerClass;
-	// The default Local FocusHandler class to instantiate. Controls what the local player sees on focus.
-	// Always a UInteractionFocusHandler subclass.
+
+	// TODO: make default VisualHandlers into arrays to support several selections at once.
+	// The default Local VisualHandler class to instantiate. Controls visuals seen by the local player on focus and interaction events.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
-	TSoftClassPtr<UInteractionFocusHandler> DefaultLocalFocusHandlerClass;
-	// The default Global FocusHandler class to instantiate. Controls what all non-local players see on local player focus.
-	// Always a UInteractionFocusHandler subclass.
+	TSoftClassPtr<UInteractionVisualHandler> DefaultLocalVisualHandlerClass;
+	// The default Global FocusHandler class to instantiate. Controls visuals seen by all non-local players see on local player focus and interaction events.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
-	TSoftClassPtr<UInteractionFocusHandler> DefaultGlobalFocusHandlerClass;
-	// The default Local ProgressHandler class to instantiate. Controls what the local player sees on interaction progress.
-	// Always a UInteractionProgressHandler subclass.
-	UPROPERTY(Config, EditAnywhere, Category="Interaction")
-	TSoftClassPtr<UInteractionProgressHandler> DefaultLocalProgressHandlerClass;
-	// The default Global ProgressHandler class to instantiate. Controls what all non-local players see while the local player interacts.
-	// Always a UInteractionProgressHandler subclass.
-	UPROPERTY(Config, EditAnywhere, Category="Interaction")
-	TSoftClassPtr<UInteractionProgressHandler> DefaultGlobalProgressHandlerClass;
+	TSoftClassPtr<UInteractionVisualHandler> DefaultGlobalVisualHandlerClass;
 	// The default RegulationHandler class to instantiate. Controls whether interactions and focus can occur.
 	// Always a UInteractionRegulationHandler subclass.
 	UPROPERTY(Config, EditAnywhere, Category="Interaction")
@@ -49,13 +40,9 @@ public:
 	UFUNCTION()
 	TSubclassOf<UInteractionTracer> GetDefaultTracerClass() const;
 	UFUNCTION()
-	TSubclassOf<UInteractionFocusHandler> GetDefaultLocalFocusHandlerClass() const;
+	TSubclassOf<UInteractionVisualHandler> GetDefaultLocalVisualHandlerClass() const;
 	UFUNCTION()
-	TSubclassOf<UInteractionFocusHandler> GetDefaultGlobalFocusHandlerClass() const;
-	UFUNCTION()
-	TSubclassOf<UInteractionProgressHandler> GetDefaultLocalProgressHandlerClass() const;
-	UFUNCTION()
-	TSubclassOf<UInteractionProgressHandler> GetDefaultGlobalProgressHandlerClass() const;
+	TSubclassOf<UInteractionVisualHandler> GetDefaultGlobalVisualHandlerClass() const;
 	UFUNCTION()
 	TSubclassOf<UInteractionRegulationHandler> GetDefaultRegulationHandlerClass() const;
 };

@@ -1,14 +1,10 @@
 #include "InteractionSettings.h"
 #include "InteractionRuleset.h"
 #include "InteractionTracer.h"
-#include "InteractionFocusHandler.h"
-#include "InteractionProgressHandler.h"
+#include "InteractionVisualHandler.h"
 #include "InteractionRegulationHandler.h"
 
-UInteractionSettings::UInteractionSettings()
-{
-	
-}
+UInteractionSettings::UInteractionSettings() {}
 
 UInteractionRuleset* UInteractionSettings::GetDefaultRuleset() const
 {
@@ -20,24 +16,14 @@ TSubclassOf<UInteractionTracer> UInteractionSettings::GetDefaultTracerClass() co
 	return DefaultTracerClass.LoadSynchronous();
 }
 
-TSubclassOf<UInteractionFocusHandler> UInteractionSettings::GetDefaultLocalFocusHandlerClass() const
+TSubclassOf<UInteractionVisualHandler> UInteractionSettings::GetDefaultLocalVisualHandlerClass() const
 {
-	return DefaultLocalFocusHandlerClass.LoadSynchronous();
+	return DefaultLocalVisualHandlerClass.LoadSynchronous();
 }
 
-TSubclassOf<UInteractionFocusHandler> UInteractionSettings::GetDefaultGlobalFocusHandlerClass() const
+TSubclassOf<UInteractionVisualHandler> UInteractionSettings::GetDefaultGlobalVisualHandlerClass() const
 {
-	return DefaultGlobalFocusHandlerClass.LoadSynchronous();
-}
-
-TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultLocalProgressHandlerClass() const
-{
-	return DefaultLocalProgressHandlerClass.LoadSynchronous();
-}
-
-TSubclassOf<UInteractionProgressHandler> UInteractionSettings::GetDefaultGlobalProgressHandlerClass() const
-{
-	return DefaultGlobalProgressHandlerClass.LoadSynchronous();
+	return DefaultGlobalVisualHandlerClass.LoadSynchronous();
 }
 
 TSubclassOf<UInteractionRegulationHandler> UInteractionSettings::GetDefaultRegulationHandlerClass() const

@@ -1,10 +1,9 @@
 #include "InteractableComponent.h"
 #include "InteractorComponent.h"
 #include "InteractionRuleset.h"
-#include "InteractionFocusHandler.h"
-#include "InteractionProgressHandler.h"
 #include "InteractionRegulationHandler.h"
 #include "InteractionSettings.h"
+#include "InteractionVisualHandler.h"
 #include "LogInteractionSystem.h"
 #include "Net/UnrealNetwork.h"
 
@@ -30,30 +29,19 @@ void UInteractableComponent::BeginPlay()
 	if(!bFallBackToDefaultHandlers)
 		return;
 	
-	// Maybe this could all be a clean lambda. I couldn't figure it out though, so it'll have to be repetitive for now. At least it's straightforward to read.
 	const UInteractionSettings* Settings = GetDefault<UInteractionSettings>();
 
-	// Local Focus Handler
-	if (LocalFocusHandlers.IsEmpty() && Settings)
-		if (auto Default = Settings->GetDefaultLocalFocusHandlerClass())
-			LocalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Default));
+	// Default LocalVisualHandler
+	if (LocalVisualHandlers.IsEmpty() && Settings)
+		if (auto Default = Settings->GetDefaultLocalVisualHandlerClass())
+			LocalVisualHandlers.Add(NewObject<UInteractionVisualHandler>(this, Default));
 
-	// Global Focus Handler
-	if (GlobalFocusHandlers.IsEmpty() && Settings)
-		if (auto Default = Settings->GetDefaultGlobalFocusHandlerClass())
-			GlobalFocusHandlers.Add(NewObject<UInteractionFocusHandler>(this, Default));
-
-	// Local Progress Handler
-	if (LocalProgressHandlers.IsEmpty() && Settings)
-		if (auto Default = Settings->GetDefaultLocalProgressHandlerClass())
-			LocalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Default));
-
-	// Global Progress Handler
-	if (GlobalProgressHandlers.IsEmpty() && Settings)
-		if (auto Default = Settings->GetDefaultGlobalProgressHandlerClass())
-			GlobalProgressHandlers.Add(NewObject<UInteractionProgressHandler>(this, Default));
-
-	// Regulation Handler
+	// Default GlobalVisualHandler
+	if (GlobalVisualHandlers.IsEmpty() && Settings)
+		if (auto Default = Settings->GetDefaultGlobalVisualHandlerClass())
+			GlobalVisualHandlers.Add(NewObject<UInteractionVisualHandler>(this, Default));
+	
+	// DefaultRegulationHandler
 	if (!RegulationHandler && Settings)
 		if (auto Default = Settings->GetDefaultRegulationHandlerClass())
 			RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
@@ -120,9 +108,9 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 {
 	OnFocusGained.Broadcast(Interactor);
 
-	for (const auto& LocalFocusHandler : LocalFocusHandlers)
-		if (LocalFocusHandler)
-			LocalFocusHandler->HandleFocusGained(this, Interactor);
+	for (const auto& LocalVisualHandler : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleFocusGained(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
 
 	if (RegulationHandler)
 		RegulationHandler->OwnerFocusGained(this, Interactor);
@@ -132,9 +120,9 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 {
 	OnFocusLost.Broadcast(Interactor);
 	
-	for (const auto& LocalFocusHandler : LocalFocusHandlers)
-		if (LocalFocusHandler)
-			LocalFocusHandler->HandleFocusLost(this, Interactor);
+	for (const auto& LocalVisualHandler : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleFocusLost(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
 
 	if (RegulationHandler)
 		RegulationHandler->OwnerFocusLost(this, Interactor);
@@ -142,30 +130,30 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 
 void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& LocalProgressHandler : LocalProgressHandlers)
-		if (LocalProgressHandler)
-			LocalProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
+	for (const auto& LocalVisualHandler : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleInteractionStart(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& LocalProgressHandler  : LocalProgressHandlers)
-		if (LocalProgressHandler)
-			LocalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
+	for (const auto& LocalVisualHandler  : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleInteractionCancelled(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& LocalProgressHandler : LocalProgressHandlers)
-		if (LocalProgressHandler)
-			LocalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
+	for (const auto& LocalVisualHandler : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleInteractionFinished(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 void UInteractableComponent::UpdateProgress(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	for (const auto& LocalProgressHandler : LocalProgressHandlers)
-		if (LocalProgressHandler)
-			LocalProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
+	for (const auto& LocalVisualHandler : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleProgressUpdate(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 // ============================================================
@@ -246,9 +234,9 @@ void UInteractableComponent::Multicast_OnInteractionBegun_Implementation(UIntera
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		if(GlobalProgressHandler)
-			GlobalProgressHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
+	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
+		if(GlobalVisualHandler)
+			GlobalVisualHandler->HandleInteractionStart(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -260,9 +248,9 @@ void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInt
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		if(GlobalProgressHandler)
-			GlobalProgressHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
+	for(const auto& GlobalVisualHandler : GlobalVisualHandlers)
+		if(GlobalVisualHandler)
+			GlobalVisualHandler->HandleInteractionFinished(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -274,9 +262,9 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for(const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		if(GlobalProgressHandler)
-			GlobalProgressHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
+	for(const auto& GlobalVisualHandler : GlobalVisualHandlers)
+		if(GlobalVisualHandler)
+			GlobalVisualHandler->HandleInteractionCancelled(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorComponent* Interactor)
@@ -284,9 +272,9 @@ void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorCom
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& GlobalFocusHandler : GlobalFocusHandlers)
-		if(GlobalFocusHandler)
-			GlobalFocusHandler->HandleFocusGained(this, Interactor);
+	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
+		if(GlobalVisualHandler)
+			GlobalVisualHandler->HandleFocusGained(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
 }
 
 void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorComponent* Interactor)
@@ -294,9 +282,9 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& GlobalFocusHandler : GlobalFocusHandlers)
-		if(GlobalFocusHandler)
-			GlobalFocusHandler->HandleFocusLost(this, Interactor);
+	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
+		if(GlobalVisualHandler)
+			GlobalVisualHandler->HandleFocusLost(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor));
 }
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
@@ -304,9 +292,9 @@ void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractor
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
-	for (const auto& GlobalProgressHandler : GlobalProgressHandlers)
-		if(GlobalProgressHandler)
-			GlobalProgressHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
+	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
+		if(GlobalVisualHandler)
+			GlobalVisualHandler->HandleProgressUpdate(this, Interactor, IsFocusable(Interactor), IsInteractable(Interactor), ProgressPercent);
 }
 
 // ============================================================
