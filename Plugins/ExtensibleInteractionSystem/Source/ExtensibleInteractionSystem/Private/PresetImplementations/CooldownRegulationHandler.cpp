@@ -1,4 +1,4 @@
-#include "Samples/CooldownRegulationHandler.h"
+#include "PresetImplementations/CooldownRegulationHandler.h"
 #include "InteractorComponent.h"
 #include "LogInteractionSystem.h"
 #include "Net/UnrealNetwork.h"
