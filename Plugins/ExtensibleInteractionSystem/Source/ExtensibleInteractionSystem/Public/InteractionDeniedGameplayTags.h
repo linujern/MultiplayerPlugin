@@ -1,0 +1,15 @@
+#pragma once
+#include "NativeGameplayTags.h"
+
+// Core denial reasons defined by the plugin.
+// Projects extend the hierarchy with their own tags freely.
+
+// Core
+EXTENSIBLEINTERACTIONSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Interaction_Denied_None)
+EXTENSIBLEINTERACTIONSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Interaction_Denied_Unknown)
+EXTENSIBLEINTERACTIONSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Interaction_Denied_NotFocusable)
+EXTENSIBLEINTERACTIONSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Interaction_Denied_NotInteractable)
+
+// Presets
+EXTENSIBLEINTERACTIONSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Interaction_Denied_Cooldown_Global)
+EXTENSIBLEINTERACTIONSYSTEM_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_Interaction_Denied_Cooldown_PerPlayer)

@@ -1,4 +1,5 @@
 #include "InteractionRegulationHandler.h"
+#include "InteractionDeniedContext.h"
 
 UInteractionRegulationHandler::UInteractionRegulationHandler()
 {
@@ -7,10 +8,10 @@ UInteractionRegulationHandler::UInteractionRegulationHandler()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-bool UInteractionRegulationHandler::CanBeFocused_Local_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) { return true; }
-bool UInteractionRegulationHandler::CanInteract_Local_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) { return true; }
-bool UInteractionRegulationHandler::CanBeFocused_Global_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) { return true; }
-bool UInteractionRegulationHandler::CanInteract_Global_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) { return true; }
+bool UInteractionRegulationHandler::CanBeFocused_Local_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext) { return true; }
+bool UInteractionRegulationHandler::CanInteract_Local_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext) { return true; }
+bool UInteractionRegulationHandler::CanBeFocused_Global_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext) { return true; }
+bool UInteractionRegulationHandler::CanInteract_Global_Implementation	(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext) { return true; }
 
 void UInteractionRegulationHandler::OwnerFocusGained_Implementation		(UInteractableComponent* Interactable, UInteractorComponent* Interactor) {}
 void UInteractionRegulationHandler::OwnerFocusLost_Implementation		(UInteractableComponent* Interactable, UInteractorComponent* Interactor) {}

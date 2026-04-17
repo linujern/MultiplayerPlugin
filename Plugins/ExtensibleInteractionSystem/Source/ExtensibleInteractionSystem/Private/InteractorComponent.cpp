@@ -1,5 +1,6 @@
 #include "InteractorComponent.h"
 #include "InteractableComponent.h"
+#include "InteractionDeniedContext.h"
 #include "InteractionRuleset.h"
 #include "InteractionSettings.h"
 #include "InteractionTracer.h"
@@ -63,6 +64,12 @@ void UInteractorComponent::StartInteracting()
 	if(IsValid(CurrentInteractingWith) || IsValid(PendingInteractable))
 		return;
 
+	FInteractionDeniedContext UnusedContext;
+	if(!CurrentFocusedInteractable->EvaluateInteractionGates(this, UnusedContext, true))
+	{
+		return;
+	}
+		
 	PendingInteractable = CurrentFocusedInteractable;
 
 	UE_LOG(LogInteract, Log, TEXT("StartInteracting called on %s, requesting interaction with: %s"), *GetOwner()->GetName(), *PendingInteractable->GetName());
@@ -119,7 +126,9 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 	if (CurrentFocusedInteractable == NewFocused)
 		return;
 
-	if(IsValid(NewFocused) && !NewFocused->IsFocusable(this))
+	FInteractionDeniedContext DeniedContext = FInteractionDeniedContext();
+	
+	if(IsValid(NewFocused) && !NewFocused->IsFocusable(this, DeniedContext))
 		return;
 	
 	// Notify the old interactable it lost focus, and the new one that it gained focus.
@@ -303,7 +312,8 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 		return;
 	}
 
-	if(!Target->IsInteractable(this))
+	FInteractionDeniedContext DeniedContext;
+	if(!Target->EvaluateInteractionGates(this, DeniedContext, true))
 	{
 		Client_InteractionRejected();
 		return;
@@ -312,7 +322,6 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 	UE_LOG(LogInteract, Log, TEXT("Server_StartInteracting called on %s, requested interaction with: %s"), *GetOwner()->GetName(), *Target->GetName());
 
 	Target->BeginInteraction(this, InteractionProgress);
-	
 	CurrentInteractingWith = Target;
 }
 

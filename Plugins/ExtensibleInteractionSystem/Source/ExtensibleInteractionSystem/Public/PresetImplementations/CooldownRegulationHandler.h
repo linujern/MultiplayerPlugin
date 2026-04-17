@@ -50,8 +50,8 @@ public:
 	//	UInteractionRegulationComponent Interface
 	// --------------------------------------------------------------------------------------------
 	
-	virtual bool CanInteract_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
-	virtual bool CanInteract_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
+	virtual bool CanInteract_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& DeniedContext) override;
+	virtual bool CanInteract_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& DeniedContext) override;
 	virtual void OwnerInteractFinish_Implementation(UInteractableComponent* Interactable, UInteractorComponent* Interactor) override;
 
 private:

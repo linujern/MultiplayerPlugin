@@ -1,4 +1,6 @@
 #include "PresetImplementations/CooldownRegulationHandler.h"
+#include "InteractionDeniedContext.h"
+#include "InteractionDeniedGameplayTags.h"
 #include "InteractorComponent.h"
 #include "LogInteractionSystem.h"
 #include "Net/UnrealNetwork.h"
@@ -25,22 +27,36 @@ void UCooldownRegulationHandler::GetLifetimeReplicatedProps(TArray<FLifetimeProp
 //	Gating Queries
 // ------------------------------------------------------------------------------------------------
 
-bool UCooldownRegulationHandler::CanInteract_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor)
+bool UCooldownRegulationHandler::CanInteract_Global_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& DeniedContext)
 {
 	// Reads replicated GlobalCooldownExpiry — consistent result on all clients.
-	return
-		!IsGlobalCooldownActive();
+	if (IsGlobalCooldownActive())
+	{
+		DeniedContext = FInteractionDeniedContext(
+			TAG_Interaction_Denied_Cooldown_Global,
+			NSLOCTEXT("ExtensibleInteractionSystem", "GlobalCooldown", "Not available yet"),
+			this);
+		return false;
+	}
+	return true;
 }
 
-bool UCooldownRegulationHandler::CanInteract_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor)
+bool UCooldownRegulationHandler::CanInteract_Local_Implementation(const UInteractableComponent* Interactable, UInteractorComponent* Interactor, FInteractionDeniedContext& DeniedContext)
 {
 	if (PerPlayerCooldownSeconds <= 0.f)
 		return true;
 
 	// Reads local satellite state on this player's pawn — only valid on the local client.
 	const UCooldownLocalStateComponent* State = Interactor->GetOwner()->FindComponentByClass<UCooldownLocalStateComponent>();
-
-	return !State || !State->IsLockedFor(this);
+	if (State && State->IsLockedFor(this))
+	{
+		DeniedContext = FInteractionDeniedContext(
+			TAG_Interaction_Denied_Cooldown_PerPlayer,
+			NSLOCTEXT("ExtensibleInteractionSystem", "LockedFor", "Not available yet"),
+			this);
+		return false;
+	}
+	return true;
 }
 
 // ------------------------------------------------------------------------------------------------

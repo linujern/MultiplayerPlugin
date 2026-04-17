@@ -1,5 +1,6 @@
 #include "PresetImplementations/InteractionOverlapTracer.h"
 #include "InteractableComponent.h"
+#include "InteractionDeniedContext.h"
 #include "LogInteractionSystem.h"
 #include "Camera/CameraComponent.h"
 #include "Engine/OverlapResult.h"
@@ -50,7 +51,8 @@ UInteractableComponent* UInteractionOverlapTracer::FindBestInteractable_Implemen
             continue;
 
         // Respect the focusable flag
-        if(!Interactable->IsFocusable(Interactor))
+        FInteractionDeniedContext UnusedContext;
+        if(!Interactable->IsFocusable(Interactor, UnusedContext))
             continue;
 
         // Direction from trace origin to the candidate's root location

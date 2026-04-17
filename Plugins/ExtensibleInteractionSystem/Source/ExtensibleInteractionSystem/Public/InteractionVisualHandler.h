@@ -1,11 +1,22 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "InteractionDeniedReason.h"
 #include "UObject/Object.h"
 #include "InteractionVisualHandler.generated.h"
 
+struct FInteractionDeniedContext;
 class UInteractableComponent;
 class UInteractorComponent;
+
+/*
+ * UInteractionVisualHandler
+ *
+ * One or more of these Handler objects can be instantiated on a UInteractableComponent,
+ * set up to handle player-facing visual updates.
+ * Receives callbacks from the owning UInteractableComponent, exposing BlueprintNativeEvents to be overwritten with bespoke logic in C++ or Blueprints.
+ * 
+ * It should never be used in gameplay logic, which must run via the Interactable's own events
+ * (OnBeginInteraction, OnFinishInteraction, OnCancelInteraction) for proper replication.
+ */
 
 UCLASS(Abstract, Blueprintable, EditInlineNew, ClassGroup=(Interaction))
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionVisualHandler : public UObject
@@ -51,13 +62,12 @@ public:
 	// ============================================================
 
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
-	void HandleInteractionStateChanged(UInteractableComponent* Interactable, UInteractorComponent* Interactor, bool bCanBeFocused, bool bCanInteract);
+	void HandleInteractionStateChanged(UInteractableComponent* Interactable, UInteractorComponent* Interactor, bool bCanBeFocused, bool bCanInteract, const FInteractionDeniedContext& Context);
 	
 	// ============================================================
 	// Denied
 	// ============================================================
 
-	// TODO: implement HandleInteractionDenied from Interactable or Interactor
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
-	void HandleInteractionDenied(UInteractableComponent* Interactable, UInteractorComponent* Interactor, EInteractionDeniedReason Reason);
+	void HandleInteractionDenied(UInteractableComponent* Interactable, UInteractorComponent* Interactor, const FInteractionDeniedContext& Context);
 };

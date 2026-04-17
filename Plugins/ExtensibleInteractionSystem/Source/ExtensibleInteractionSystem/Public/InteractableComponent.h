@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "InteractableComponent.generated.h"
 
+struct FInteractionDeniedContext;
 class UInteractionVisualHandler;
 class UInteractorComponent;
 class UInteractionRuleset;
@@ -43,12 +44,14 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusLost,		UInteractorComponent*
  * UInteractableComponent
  *
  * Add to any actor that should be interactable. Manages interaction state replication,
- * broadcasts delegates for gameplay logic, and dispatches visual events to Focus and Progress handlers.
+ * broadcasts delegates for gameplay logic, and dispatches visual events to VisualHandlers.
  *
  * Interaction is initiated and terminated by UInteractorComponent via server-side entry points.
  * Focus events are local-only and never replicated.
  *
- * Visual behaviour is configured via handler class arrays:
+ * Interactions can be cleanly gated using an instanced RegulationHandler class or disabled using a runtime flag.
+ *
+ * Visual behaviour is configured via VisualHandler pointer arrays:
  *   - Local handlers run only on the focusing/interacting client's side.
  *   - Global handlers run on all clients via NetMulticast.
  */
@@ -106,12 +109,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "InteractionSystem")
 	const UInteractionRuleset* GetRuleset() const;
 
+	
+	UFUNCTION()
+	bool EvaluateInteractionGates(UInteractorComponent* Interactor, FInteractionDeniedContext& OutContext, bool bNotifyDisplayHandlers);
+
 	// Returns whether this component can be focused, checking 1: Local override, 2: Ruleset Override, 3: RegulationHandler
 	UFUNCTION(BlueprintCallable, Category = "InteractionSystem")
-	bool IsFocusable(UInteractorComponent* Interactor) const;
+	bool IsFocusable(UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext);
 
+	// Returns whether this component can be interacted with, checking 1: Local override, 2: Ruleset Override, 3: RegulationHandler
 	UFUNCTION(BlueprintCallable, Category = "InteractionSystem")
-	bool IsInteractable(UInteractorComponent* Interactor) const;
+	bool IsInteractable(UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext);
 
 	// ============================================================
 	// Delegates

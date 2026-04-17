@@ -1,4 +1,6 @@
 #include "InteractableComponent.h"
+#include "InteractionDeniedContext.h"
+#include "InteractionDeniedGameplayTags.h"
 #include "InteractorComponent.h"
 #include "InteractionRuleset.h"
 #include "InteractionRegulationHandler.h"
@@ -64,19 +66,25 @@ void UInteractableComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	if(!IsValid(CachedLocalFocusInteractor))
 		return;
 
-	const bool bNewCanFocus = IsFocusable(CachedLocalFocusInteractor);
-	const bool bNewCanInteract = IsInteractable(CachedLocalFocusInteractor);
+	FInteractionDeniedContext FocusContext = FInteractionDeniedContext();
+	FInteractionDeniedContext InteractContext = FInteractionDeniedContext();
+	
+	const bool bNewCanFocus = IsFocusable(CachedLocalFocusInteractor, FocusContext);
+	const bool bNewCanInteract = IsInteractable(CachedLocalFocusInteractor, InteractContext);
 
-	if (bNewCanFocus != bCachedCanFocus || bNewCanInteract != bCachedCanInteract)
+	if(bNewCanFocus != bCachedCanFocus)
 	{
 		bCachedCanFocus = bNewCanFocus;
+		for (auto& LocalVisualHandler : LocalVisualHandlers)
+			LocalVisualHandler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract, FocusContext);
+	}
+	if(bNewCanInteract != bCachedCanInteract)
+	{
 		bCachedCanInteract = bNewCanInteract;
-
-		for (auto& Handler : LocalVisualHandlers)
-			Handler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract);
+		for (auto& LocalVisualHandler : LocalVisualHandlers)
+			LocalVisualHandler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract, InteractContext);
 	}
 }
-
 
 // ============================================================
 // SERVER-SIDE ENTRY POINTS
@@ -134,10 +142,12 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 
 	if (RegulationHandler)
 		RegulationHandler->OwnerFocusGained(this, Interactor);
+
+	FInteractionDeniedContext DeniedContext = FInteractionDeniedContext();
 	
 	// Cache initial state so the first tick has something to diff against
-	bCachedCanFocus = IsFocusable(Interactor);
-	bCachedCanInteract = IsInteractable(Interactor);
+	bCachedCanFocus = IsFocusable(Interactor, DeniedContext);
+	bCachedCanInteract = IsInteractable(Interactor, DeniedContext);
 	CachedLocalFocusInteractor = Interactor;
 	
 	OnFocusGained.Broadcast(Interactor);
@@ -210,30 +220,39 @@ const UInteractionRuleset* UInteractableComponent::GetRuleset() const
 	return GetDefault<UInteractionRuleset>();
 }
 
-bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor) const
+bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext)
 {
-	if(bDisableFocus)
+	if (bDisableFocus)
+	{
+		OutDeniedContext = FInteractionDeniedContext(
+			TAG_Interaction_Denied_NotFocusable,
+			NSLOCTEXT("ExtensibleInteractionSystem", "NotInteractable", "Cannot interact"),
+			this);
 		return false;
+	}
 
 	const UInteractionRuleset* Ruleset = GetRuleset();
-	if(Ruleset && Ruleset->bDisableFocus)
+	if (Ruleset && Ruleset->bDisableFocus)
+	{
+		OutDeniedContext = FInteractionDeniedContext(
+			TAG_Interaction_Denied_NotFocusable,
+			NSLOCTEXT("ExtensibleInteractionSystem", "NotInteractable", "Cannot interact"),
+			this);
 		return false;
+	}
 
 	if (IsValid(RegulationHandler))
 	{
-		// Global — reads replicated state, same result for all players
-		if (!RegulationHandler->CanBeFocused_Global(this, Interactor))
+		if (!RegulationHandler->CanBeFocused_Global(this, Interactor, OutDeniedContext))
 			return false;
-
-		// Local — reads per-player state, can differ per client
-		if (!RegulationHandler->CanBeFocused_Local(this, Interactor))
+		if (!RegulationHandler->CanBeFocused_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
-	
+
 	return true;
 }
 
-bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor) const
+bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor, FInteractionDeniedContext& OutDeniedContext)
 {
 	if(bDisableInteraction)
 		return false;
@@ -244,11 +263,39 @@ bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor) co
 
 	if(IsValid(RegulationHandler))
 	{
-		if(!RegulationHandler->CanInteract_Global(this, Interactor))
+		if(!RegulationHandler->CanInteract_Global(this, Interactor, OutDeniedContext))
 			return false;
 
-		if(!RegulationHandler->CanInteract_Local(this, Interactor))
+		if(!RegulationHandler->CanInteract_Local(this, Interactor, OutDeniedContext))
 			return false;
+	}
+
+	return true;
+}
+
+bool UInteractableComponent::EvaluateInteractionGates(UInteractorComponent* Interactor, FInteractionDeniedContext& OutContext, bool bNotifyDisplayHandlers)
+{
+	if (bDisableInteraction)
+		OutContext = FInteractionDeniedContext(TAG_Interaction_Denied_NotInteractable, FText::FromString("Cannot interact"),this);
+	
+	else if (IsValid(RegulationHandler))
+	{
+		// Global check first — reads replicated state, same on all clients
+		if (!RegulationHandler->CanInteract_Global(this, Interactor, OutContext))
+		{ /* OutContext already filled by the handler */ }
+		
+		// Per-player check second — reads local state, may differ per client
+		else if (!RegulationHandler->CanInteract_Local(this, Interactor, OutContext))
+		{ /* OutContext already filled by the handler */ }
+	}
+
+	if (OutContext.IsValid())
+	{
+		if (bNotifyDisplayHandlers)
+			for (auto& LocalVisualHandler : LocalVisualHandlers)
+				LocalVisualHandler->HandleInteractionDenied(this, Interactor, OutContext);
+		
+		return false;
 	}
 
 	return true;
