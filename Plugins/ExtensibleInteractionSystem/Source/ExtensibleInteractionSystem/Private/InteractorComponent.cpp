@@ -59,28 +59,28 @@ void UInteractorComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void UInteractorComponent::StartInteracting()
 {
-	if(!IsValid(CurrentFocusedInteractable))
-		return;
-	if(IsValid(CurrentInteractingWith) || IsValid(PendingInteractable))
+	// Exit early if there is nothing to interact with, or if an interaction is already pending.
+	if (!IsValid(CurrentFocusedInteractable) || IsValid(PendingInteractable))
 		return;
 
-	FInteractionDeniedContext UnusedContext;
-	if(!CurrentFocusedInteractable->EvaluateInteractionGates(this, UnusedContext, true))
-	{
-		return;
-	}
-		
+	// Clear delegate bindings from previously started interactions, if any exist.
+	if (IsValid(CurrentInteractingWith))
+		UnbindDelegatesFrom(CurrentInteractingWith);
+
+	// Perform interaction gating checks on the server before allowing the interaction to begin, to ensure consistent rules enforcement and prevent cheating.
+	FInteractionDeniedContext DeniedContext;
+	CurrentFocusedInteractable->EvaluateInteractionGates(this, DeniedContext, true);
+
+	// The focused interactable will be tested by the server to ensure it is suitable (allowed) to begin interacting.
 	PendingInteractable = CurrentFocusedInteractable;
-
-	UE_LOG(LogInteract, Log, TEXT("StartInteracting called on %s, requesting interaction with: %s"), *GetOwner()->GetName(), *PendingInteractable->GetName());
-
-	// Bind before the server call in preparation for OnRep firing which broadcasts OnBeginInteraction
-	// - which is what moves PendingInteractable to CurrentInteractingWith.
+	
 	PendingInteractable->OnBeginInteraction.AddDynamic(this, &UInteractorComponent::OnLocalInteractBegun);
 	PendingInteractable->OnFinishInteraction.AddDynamic(this, &UInteractorComponent::OnLocalInteractFinished);
 	PendingInteractable->OnCancelInteraction.AddDynamic(this, &UInteractorComponent::OnLocalInteractCancelled);
-	
+
 	Server_StartInteracting(PendingInteractable);
+
+	UE_LOG(LogInteract, Verbose, TEXT("StartInteracting called on %s, requesting interaction with: %s"), *GetOwner()->GetName(), *PendingInteractable->GetName());
 }
 
 void UInteractorComponent::StopInteracting()
@@ -91,9 +91,11 @@ void UInteractorComponent::StopInteracting()
 		UnbindDelegatesFrom(PendingInteractable);
 		PendingInteractable = nullptr;
 		Server_CancelInteraction(InteractionProgress);
+		UE_LOG(LogInteract, Verbose, TEXT("StopInteracting called on %s, cancelled pending interaction with: %s"), *GetOwner()->GetName(), *PendingInteractable->GetName());
 		return;
 	}
 
+	// Nothing to stop interacting with
 	if(!IsValid(CurrentInteractingWith))
 		return;
 
@@ -106,6 +108,8 @@ void UInteractorComponent::StopInteracting()
 		bIsDraining = true;
 	else
 		Server_CancelInteraction(InteractionProgress);
+
+	UE_LOG(LogInteract, Verbose, TEXT("StopInteracting called on %s"), *GetOwner()->GetName());
 }
 
 // ============================================================
@@ -123,13 +127,21 @@ void UInteractorComponent::TickTrace()
 
 void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableComponent* NewFocused)
 {
+	// If the new focused is the old focused then there is no change and no need to do anything.
 	if (CurrentFocusedInteractable == NewFocused)
 		return;
 
 	FInteractionDeniedContext DeniedContext = FInteractionDeniedContext();
-	
+
+	// If the new focused cannot be focused, ignore the input.
 	if(IsValid(NewFocused) && !NewFocused->IsFocusable(this, DeniedContext))
 		return;
+
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Updating focused interactable for %s. Old focused: %s. New focused: %s"),
+		*GetOwner()->GetName(),
+		IsValid(CurrentFocusedInteractable) ? *CurrentFocusedInteractable->GetName() : TEXT("None(NullObject)"),
+		IsValid(NewFocused) ? *NewFocused->GetName() : TEXT("None(NullObject)"));
 	
 	// Notify the old interactable it lost focus, and the new one that it gained focus.
 	// Focus is purely local, so this doesn't need to go through the server,
@@ -146,13 +158,22 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 		UnbindDelegatesFrom(PendingInteractable);
 		PendingInteractable = nullptr;
 		Server_CancelInteraction(InteractionProgress);
+		UE_LOG(LogInteract, VeryVerbose, TEXT
+			("Focus changed while waiting for server confirmation of interaction. Cancelled pending interaction with: %s"),
+			*PendingInteractable->GetName());
 	}
 	else if(IsValid(CurrentInteractingWith))
 	{
 		bIsDraining = false;
 		Server_CancelInteraction(InteractionProgress);
+		UE_LOG(LogInteract, VeryVerbose, TEXT
+			("Focus changed while interacting. Cancelled interaction with: %s"),
+			*CurrentInteractingWith->GetName());
+		
 	}
-	
+	// The old focused interactable is now fully handled.
+
+	// Update the new focused interactable.
 	CurrentFocusedInteractable = NewFocused;
 
 	if(IsValid(NewFocused))
@@ -220,15 +241,13 @@ void UInteractorComponent::TimerUpdate(float AddedValue, float UpdateThreshold)
 void UInteractorComponent::SubmitInteraction()
 {
 	if(!IsValid(CurrentInteractingWith))
-	{
-		UE_LOG(LogInteract, Warning, TEXT("SubmitInteraction called on %s but CurrentInteractingWith is invalid!"), *GetOwner()->GetName());
 		return;
-	}
 
-	UE_LOG(LogInteract, Log, TEXT("SubmitInteraction called on %s, interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
-	
+	// Once the timer has finished - submit the interaction to the server, which will trigger the authority logic and broadcast the result back to clients.
 	Server_RequestFinishInteraction(InteractionProgress);
 	InteractionProgress = 0.f;
+
+	UE_LOG(LogInteract, Verbose, TEXT("SubmitInteraction called on %s, interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
 }
 
 void UInteractorComponent::UnbindDelegatesFrom(UInteractableComponent* Target)
@@ -239,6 +258,8 @@ void UInteractorComponent::UnbindDelegatesFrom(UInteractableComponent* Target)
 	Target->OnBeginInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractBegun);
 	Target->OnFinishInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractFinished);
 	Target->OnCancelInteraction.RemoveDynamic(this, &UInteractorComponent::OnLocalInteractCancelled);
+	
+	UE_LOG(LogInteract, Verbose, TEXT("Unbinding %s's delegates from %s"), *Target->GetName(), *GetOwner()->GetName());
 }
 
 void UInteractorComponent::ResetInteractionState()
@@ -248,7 +269,8 @@ void UInteractorComponent::ResetInteractionState()
 	bIsDraining = false;
 	CurrentInteractingWith = nullptr;
 	PendingInteractable = nullptr;
-	UE_LOG(LogInteract, Log, TEXT("ResetInteractionState called on %s"), *GetOwner()->GetName());
+
+	UE_LOG(LogInteract, Verbose, TEXT("ResetInteractionState called on %s"), *GetOwner()->GetName());
 }
 
 // ============================================================
@@ -263,15 +285,20 @@ void UInteractorComponent::OnLocalInteractBegun(UInteractorComponent* Interactor
 	if(Interactor != this)
 		return;
 
-	// Server has confirmed the interaction - move form pending to active.
+	// Exit early if no Interactable is being considered for interaction.
+	if(!IsValid(PendingInteractable))
+		return;
+	
+	// Server has confirmed the interaction - move from pending to active.
 	CurrentInteractingWith = PendingInteractable;
 	PendingInteractable = nullptr;
-	InteractionProgress = 0.f;
+	// Is not draining when interaction is just starting.
 	bIsDraining = false;
 
+	// Notify CurrentInteractingWith that the interaction has passed all checks, so it can trigger its own local visual handlers and other logic.
 	CurrentInteractingWith->InteractBegin(this, InteractionProgress);
 
-	UE_LOG(LogInteract, Log, TEXT("OnLocalInteractBegun called on %s, now interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
+	UE_LOG(LogInteract, Verbose, TEXT("OnLocalInteractBegun called on %s, now interacting with: %s"), *GetOwner()->GetName(), *CurrentInteractingWith->GetName());
 }
 
 void UInteractorComponent::OnLocalInteractFinished(UInteractorComponent* Interactor)
@@ -284,7 +311,7 @@ void UInteractorComponent::OnLocalInteractFinished(UInteractorComponent* Interac
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
 
-	UE_LOG(LogInteract, Log, TEXT("OnLocalInteractFinished called on %s"), *GetOwner()->GetName());
+	UE_LOG(LogInteract, Verbose, TEXT("OnLocalInteractFinished called on %s"), *GetOwner()->GetName());
 }
 
 void UInteractorComponent::OnLocalInteractCancelled(UInteractorComponent* Interactor)
@@ -313,13 +340,15 @@ void UInteractorComponent::Server_StartInteracting_Implementation(UInteractableC
 	}
 
 	FInteractionDeniedContext DeniedContext;
-	if(!Target->EvaluateInteractionGates(this, DeniedContext, true))
+	const bool bAllowed = Target->EvaluateInteractionGates(this, DeniedContext, false);
+
+	if (!bAllowed)
 	{
 		Client_InteractionRejected();
 		return;
 	}
-
-	UE_LOG(LogInteract, Log, TEXT("Server_StartInteracting called on %s, requested interaction with: %s"), *GetOwner()->GetName(), *Target->GetName());
+	
+	UE_LOG(LogInteract, Verbose, TEXT("Server_StartInteracting called on %s, requested interaction with: %s"), *GetOwner()->GetName(), *Target->GetName());
 
 	Target->BeginInteraction(this, InteractionProgress);
 	CurrentInteractingWith = Target;
@@ -378,5 +407,5 @@ void UInteractorComponent::Client_InteractionRejected_Implementation()
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
 
-	UE_LOG(LogInteract, Log, TEXT("Client_InteractionRejected called on %s"), *GetOwner()->GetName());
+	UE_LOG(LogInteract, Verbose, TEXT("Client_InteractionRejected called on %s"), *GetOwner()->GetName());
 }

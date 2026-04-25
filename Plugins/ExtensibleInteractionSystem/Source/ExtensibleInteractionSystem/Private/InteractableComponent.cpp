@@ -45,9 +45,9 @@ void UInteractableComponent::BeginPlay()
 			GlobalVisualHandlers.Add(NewObject<UInteractionVisualHandler>(this, Default));
 	
 	// DefaultRegulationHandler
-	if (!RegulationHandler && Settings)
-		if (auto Default = Settings->GetDefaultRegulationHandlerClass())
-			RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
+	//if (!RegulationHandler && Settings)
+	//	if (auto Default = Settings->GetDefaultRegulationHandlerClass())
+	//		RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
 }
 
 void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -97,9 +97,9 @@ void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, 
 	CurrentInteractors.AddUnique(Interactor);
 	if(CurrentInteractors.Num() == 1)
 		InteractState = EInteractionState::Interacting;
-
-	if (RegulationHandler)
-		RegulationHandler->OwnerInteractStart(this, Interactor);
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (Handler)
+		Handler->OwnerInteractStart(this, Interactor);
 	
 	Multicast_OnInteractionBegun(Interactor, ProgressPercent);
 }
@@ -111,8 +111,9 @@ void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor,
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
 
-	if (RegulationHandler)
-		RegulationHandler->OwnerInteractFinish(this, Interactor);
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (Handler)
+		Handler->OwnerInteractFinish(this, Interactor);
 	
 	Multicast_OnInteractionFinished(Interactor, ProgressPercent);
 }
@@ -124,8 +125,9 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
 
-	if (RegulationHandler)
-		RegulationHandler->OwnerInteractCancel(this, Interactor);
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (Handler)
+		Handler->OwnerInteractCancel(this, Interactor);
 	
 	Multicast_OnInteractionCancelled(Interactor, ProgressPercent);
 }
@@ -137,18 +139,23 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 
 void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 {
+	UE_LOG(LogInteract, VeryVerbose, TEXT
+		("UInteractableComponent::FocusLost called on %s via %s"),
+		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
+	
 	// Enable tick only while focused — no wasted evaluation otherwise
 	SetComponentTickEnabled(true);
 
-	if (RegulationHandler)
-		RegulationHandler->OwnerFocusGained(this, Interactor);
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (Handler)
+		Handler->OwnerFocusGained(this, Interactor);
 
 	FInteractionDeniedContext DeniedContext = FInteractionDeniedContext();
 	
 	// Cache initial state so the first tick has something to diff against
+	CachedLocalFocusInteractor = Interactor;
 	bCachedCanFocus = IsFocusable(Interactor, DeniedContext);
 	bCachedCanInteract = IsInteractable(Interactor, DeniedContext);
-	CachedLocalFocusInteractor = Interactor;
 	
 	OnFocusGained.Broadcast(Interactor);
 
@@ -159,10 +166,15 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 
 void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 {
+	UE_LOG(LogInteract, VeryVerbose, TEXT
+		("UInteractableComponent::FocusLost called on %s via %s"),
+		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
+	
 	SetComponentTickEnabled(false);
 
-	if (RegulationHandler)
-		RegulationHandler->OwnerFocusLost(this, Interactor);
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (Handler)
+		Handler->OwnerFocusLost(this, Interactor);
 
 	CachedLocalFocusInteractor = nullptr;
 	
@@ -175,6 +187,10 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 
 void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, const float ProgressPercent)
 {
+	UE_LOG(LogInteract, Log, TEXT
+		("UInteractableComponent::InteractBegin called on %s via %s"),
+		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
+	
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
 			LocalVisualHandler->HandleInteractionStart(this, Interactor, ProgressPercent);
@@ -182,6 +198,10 @@ void UInteractableComponent::InteractBegin(UInteractorComponent* Interactor, con
 
 void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, const float ProgressPercent)
 {
+	UE_LOG(LogInteract, Log, TEXT
+		("UInteractableComponent::InteractCancel called on %s via %s"),
+		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
+	
 	for (const auto& LocalVisualHandler  : LocalVisualHandlers)
 		if (LocalVisualHandler)
 			LocalVisualHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
@@ -189,6 +209,10 @@ void UInteractableComponent::InteractCancel(UInteractorComponent* Interactor, co
 
 void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, const float ProgressPercent)
 {
+	UE_LOG(LogInteract, Log, TEXT
+		("UInteractableComponent::InteractFinish called on %s via %s"),
+		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
+	
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
 			LocalVisualHandler->HandleInteractionFinished(this, Interactor, ProgressPercent);
@@ -196,6 +220,10 @@ void UInteractableComponent::InteractFinish(UInteractorComponent* Interactor, co
 
 void UInteractableComponent::UpdateProgress(UInteractorComponent* Interactor, const float ProgressPercent)
 {
+	UE_LOG(LogInteract, VeryVerbose, TEXT
+		("UInteractableComponent::UpdateProgress called on %s via %s"),
+		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
+	
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
 			LocalVisualHandler->HandleProgressUpdate(this, Interactor, ProgressPercent);
@@ -241,11 +269,12 @@ bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor, FInte
 		return false;
 	}
 
-	if (IsValid(RegulationHandler))
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (IsValid(Handler))
 	{
-		if (!RegulationHandler->CanBeFocused_Global(this, Interactor, OutDeniedContext))
+		if (!Handler->CanBeFocused_Global(this, Interactor, OutDeniedContext))
 			return false;
-		if (!RegulationHandler->CanBeFocused_Local(this, Interactor, OutDeniedContext))
+		if (!Handler->CanBeFocused_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
 
@@ -261,12 +290,13 @@ bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor, FI
 	if(Ruleset && Ruleset->bDisableInteraction)
 		return false;
 
-	if(IsValid(RegulationHandler))
+	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if(IsValid(Handler))
 	{
-		if(!RegulationHandler->CanInteract_Global(this, Interactor, OutDeniedContext))
+		if(!Handler->CanInteract_Global(this, Interactor, OutDeniedContext))
 			return false;
 
-		if(!RegulationHandler->CanInteract_Local(this, Interactor, OutDeniedContext))
+		if(!Handler->CanInteract_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
 
@@ -275,26 +305,29 @@ bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor, FI
 
 bool UInteractableComponent::EvaluateInteractionGates(UInteractorComponent* Interactor, FInteractionDeniedContext& OutContext, bool bNotifyDisplayHandlers)
 {
+	bool bAllowed = true;
+
 	if (bDisableInteraction)
-		OutContext = FInteractionDeniedContext(TAG_Interaction_Denied_NotInteractable, FText::FromString("Cannot interact"),this);
-	
-	else if (IsValid(RegulationHandler))
 	{
-		// Global check first — reads replicated state, same on all clients
-		if (!RegulationHandler->CanInteract_Global(this, Interactor, OutContext))
-		{ /* OutContext already filled by the handler */ }
-		
-		// Per-player check second — reads local state, may differ per client
-		else if (!RegulationHandler->CanInteract_Local(this, Interactor, OutContext))
-		{ /* OutContext already filled by the handler */ }
+		OutContext = FInteractionDeniedContext(
+			TAG_Interaction_Denied_NotInteractable,
+			FText::FromString("Cannot interact"), this);
+		bAllowed = false;
+	}
+	else if (UInteractionRegulationHandler* Handler =
+		GetOwner()->FindComponentByClass<UInteractionRegulationHandler>())
+	{
+		if (!Handler->CanInteract_Global(this, Interactor, OutContext))
+			bAllowed = false;
+		else if (!Handler->CanInteract_Local(this, Interactor, OutContext))
+			bAllowed = false;
 	}
 
-	if (OutContext.IsValid())
+	if (!bAllowed)
 	{
 		if (bNotifyDisplayHandlers)
 			for (auto& LocalVisualHandler : LocalVisualHandlers)
 				LocalVisualHandler->HandleInteractionDenied(this, Interactor, OutContext);
-		
 		return false;
 	}
 
@@ -307,10 +340,12 @@ bool UInteractableComponent::EvaluateInteractionGates(UInteractorComponent* Inte
 
 void UInteractableComponent::Multicast_OnInteractionBegun_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
-	
 	OnBeginInteraction.Broadcast(Interactor);
 
-	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionBegun called on %s"), *GetOwner()->GetName());
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Multicast_OnInteractionBegun called on %s via %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"));
 
 	if(IsLocallyInstigated(Interactor))
 		return;
@@ -324,7 +359,10 @@ void UInteractableComponent::Multicast_OnInteractionFinished_Implementation(UInt
 {
 	OnFinishInteraction.Broadcast(Interactor);
 
-	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionFinished called on %s"), *GetOwner()->GetName());
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Multicast_OnInteractionFinished called on %s via %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"));
 	
 	if(IsLocallyInstigated(Interactor))
 		return;
@@ -338,7 +376,10 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 {
 	OnCancelInteraction.Broadcast(Interactor);
 
-	UE_LOG(LogInteract, Log, TEXT("Multicast_OnInteractionCancelled called on %s"), *GetOwner()->GetName());
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Multicast_OnInteractionCancelled called on %s via %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"));
 
 	if(IsLocallyInstigated(Interactor))
 		return;
@@ -350,6 +391,11 @@ void UInteractableComponent::Multicast_OnInteractionCancelled_Implementation(UIn
 
 void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorComponent* Interactor)
 {
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Multicast_FocusGained called on %s via %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"));
+	
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
@@ -360,6 +406,11 @@ void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorCom
 
 void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorComponent* Interactor)
 {
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Multicast_FocusLost called on %s via %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"));
+	
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
@@ -370,6 +421,11 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
+	UE_LOG(LogInteract, Verbose, TEXT
+		("Multicast_UpdateProgress called on %s via %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"));
+	
 	if(IsLocallyInstigated(Interactor))
 		return;
 	
