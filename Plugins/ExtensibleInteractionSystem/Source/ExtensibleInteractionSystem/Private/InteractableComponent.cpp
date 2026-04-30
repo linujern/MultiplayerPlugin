@@ -277,7 +277,6 @@ bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor, FInte
 		if (!Handler->CanBeFocused_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
-
 	return true;
 }
 
@@ -299,7 +298,6 @@ bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor, FI
 		if(!Handler->CanInteract_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
-
 	return true;
 }
 
@@ -323,15 +321,18 @@ bool UInteractableComponent::EvaluateInteractionGates(UInteractorComponent* Inte
 			bAllowed = false;
 	}
 
-	if (!bAllowed)
-	{
-		if (bNotifyDisplayHandlers)
-			for (auto& LocalVisualHandler : LocalVisualHandlers)
-				LocalVisualHandler->HandleInteractionDenied(this, Interactor, OutContext);
-		return false;
-	}
+	if (bNotifyDisplayHandlers && !bAllowed)
+		for (auto& LocalVisualHandler : LocalVisualHandlers)
+			LocalVisualHandler->HandleInteractionDenied(this, Interactor, OutContext);
 
-	return true;
+	UE_LOG(LogInteract, Verbose, TEXT
+		("EvaluateInteractionGates called on %s via %s. Allowed: %s. Reason: %s"),
+		*GetOwner()->GetName(),
+		IsValid(Interactor) ? *Interactor->GetName() : TEXT("None(NullObject)"),
+		bAllowed ? TEXT("true") : TEXT("false"),
+		*OutContext.Reason.ToString());
+	
+	return bAllowed;
 }
 
 // ============================================================

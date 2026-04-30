@@ -10,18 +10,18 @@ struct EXTENSIBLEINTERACTIONSYSTEM_API FInteractionDeniedContext
 	
 	// Hierarchical reason — matches against Interaction.Denied.* hierarchy.
 	// The plugin defines core tags. Projects define their own freely.
-	UPROPERTY(BlueprintReadOnly, Category="Interaction")
+	UPROPERTY(BlueprintReadWrite, Category="Interaction")
 	FGameplayTag Reason;
 
 	// Localizable display message for UI. Set by the denying component.
 	// "You need a key", "On cooldown", "Door is sealed" etc.
 	// Left empty if the display handler derives text from the tag itself.
-	UPROPERTY(BlueprintReadOnly, Category="Interaction")
+	UPROPERTY(BlueprintReadWrite, Category="Interaction")
 	FText DisplayMessage;
 
 	// The component that denied the interaction.
 	// Display handlers can cast this and query additional context if needed.
-	UPROPERTY(BlueprintReadOnly, Category="Interaction")
+	UPROPERTY(BlueprintReadWrite, Category="Interaction")
 	TObjectPtr<UActorComponent> DenyingComponent;
 
 	// Convenience constructor for the common case
