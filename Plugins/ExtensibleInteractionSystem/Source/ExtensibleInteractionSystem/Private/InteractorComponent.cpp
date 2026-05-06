@@ -312,6 +312,8 @@ void UInteractorComponent::OnLocalInteractFinished(UInteractorComponent* Interac
 	if(Interactor != this || !IsValid(CurrentInteractingWith))
 		return;
 
+	OnInteractFinished.Broadcast(CurrentInteractingWith);
+
 	CurrentInteractingWith->InteractFinish(this, InteractionProgress);
 	
 	UnbindDelegatesFrom(CurrentInteractingWith);
@@ -324,6 +326,8 @@ void UInteractorComponent::OnLocalInteractCancelled(UInteractorComponent* Intera
 {
 	if(Interactor != this  || !IsValid(CurrentInteractingWith))
 		return;
+
+	OnInteractCancelled.Broadcast(CurrentInteractingWith);
 
 	CurrentInteractingWith->InteractCancel(this, InteractionProgress);
 
@@ -412,6 +416,8 @@ void UInteractorComponent::Client_InteractionRejected_Implementation()
 		*GetOwner()->GetName(),
 		IsValid(PendingInteractable) ? *PendingInteractable->GetName() : TEXT("null"),
 		IsValid(CurrentInteractingWith) ? *CurrentInteractingWith->GetName() : TEXT("null"));
+
+	OnInteractRejected.Broadcast(IsValid(PendingInteractable) ? PendingInteractable : CurrentInteractingWith);
 	
 	// Clean up whichever of the two might have been set at the time of rejection.
 	UnbindDelegatesFrom(PendingInteractable);

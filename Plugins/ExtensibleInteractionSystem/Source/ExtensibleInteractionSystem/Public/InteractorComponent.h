@@ -7,6 +7,15 @@ class UInteractableComponent;
 class UInteractionTracer;
 
 // ============================================================
+// Delegates
+// ============================================================
+
+// Delegates pass the target UInteractableComponent so listeners can apply object-specific logic without needing to query the component separately.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractCancelled, UInteractableComponent*, Interactable);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractFinished,  UInteractableComponent*, Interactable);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractRejected,  UInteractableComponent*, Interactable);
+
+// ============================================================
 // UINTERACTORCOMPONENT
 // ============================================================
 
@@ -102,6 +111,22 @@ private:
 	void UnbindDelegatesFrom(UInteractableComponent* Target);
 	void ResetInteractionState();
 
+	// ============================================================
+	// Delegates
+	// ============================================================
+
+	// Broadcast from InteractorComponent::OnLocalInteractCancelled when an interaction is cancelled.
+	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
+	FOnInteractCancelled OnInteractCancelled;
+
+	// Broadcast from InteractorComponent::OnLocalInteractFinished when an interaction finishes.
+	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
+	FOnInteractFinished OnInteractFinished;
+
+	// Broadcast from InteractorComponent::Client_InteractionRejected when the server rejects the interaction request (e.g. invalid target, failed validation, etc.).
+	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
+	FOnInteractRejected OnInteractRejected;
+	
 	// ============================================================
 	// Delegate Callbacks
 	// Bound to the interactable's delegates in StartInteracting.
