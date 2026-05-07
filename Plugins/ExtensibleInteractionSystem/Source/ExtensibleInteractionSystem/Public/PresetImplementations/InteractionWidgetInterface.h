@@ -4,6 +4,8 @@
 #include "UObject/Interface.h"
 #include "InteractionWidgetInterface.generated.h"
 
+struct FInteractionDeniedContext;
+
 UINTERFACE()
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractionWidgetInterface : public UInterface
 {
@@ -28,4 +30,6 @@ public:
     void InteractFinish(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
     UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
     void InteractCancel(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+    void InteractDenied(UInteractableComponent* Interactable, UInteractorComponent* Interactor, const FInteractionDeniedContext& DeniedContext);
 };
