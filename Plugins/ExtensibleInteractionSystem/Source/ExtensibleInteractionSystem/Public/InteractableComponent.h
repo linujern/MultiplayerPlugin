@@ -108,7 +108,6 @@ public:
 	// 3. UInteractionRuleset CDO (hardcoded fallback - always valid)
 	UFUNCTION(BlueprintPure, Category = "InteractionSystem")
 	const UInteractionRuleset* GetRuleset() const;
-
 	
 	UFUNCTION()
 	bool EvaluateInteractionGates(UInteractorComponent* Interactor, FInteractionDeniedContext& OutContext, bool bNotifyDisplayHandlers);
@@ -145,7 +144,7 @@ protected:
 	// ============================================================
 
 	// Overrides the project default ruleset for this specific component instance. Leave empty to fall through to project default or CDO fallback.
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
 	TObjectPtr<UInteractionRuleset> InstanceRuleset;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Interaction")
@@ -173,12 +172,12 @@ protected:
 
 	// The classes which dictate behaviour related to the focus/interaction state of this component, as seen by the local player.
 	// (such as highlighting a focused object or showing a widget).
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionVisualHandler>> LocalVisualHandlers;
 
 	// The classes which dictate behaviour related to the focus/interaction state of this component, as seen by *ALL* players.
 	// (such as a world-space widget appearing above the object when focused or when interacted with).
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionVisualHandler>> GlobalVisualHandlers;
 
 	// ============================================================
