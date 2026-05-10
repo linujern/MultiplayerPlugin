@@ -125,15 +125,29 @@ public:
 	// Broadcast on all clients via OnRep (Begin), or NetMulticast (Finish, Cancel).
 	// Focus delegates broadcast locally only
 	// ============================================================
-	
+
+	// Broadcast by the server when an interaction begins. "Interactor" is the instigating component. 
+	// Multicast_OnInteractionBegun is called by BeginInteraction, which replicates to all clients via NetMulticast and broadcasts this delegate on each client.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnBeginInteract OnBeginInteraction;
+	
+	// Broadcast by the server when an interaction finishes. "Interactor" is the instigating component. 
+	// Multicast_OnInteractionFinished is called by FinishInteraction, which replicates to all clients via NetMulticast and broadcasts this delegate on each client.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnFinishInteract OnFinishInteraction;
+	
+	// Broadcast by the server when an interaction is cancelled. "Interactor" is the instigating component. 
+	// Multicast_OnInteractionCancelled is called by CancelInteraction, which replicates to all clients via NetMulticast and broadcasts this delegate on each client.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnCancelInteract OnCancelInteraction;
+
+	// Broadcast locally when this interactable gains focus from an interactor. "Interactor" is the instigating component. 
+	// UInteractableComponent::FocusGained is called by UInteractorComponent on the local client when focus is detected, which broadcasts this delegate.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnFocusGained OnFocusGained;
+	
+	// Broadcast locally when this interactable loses focus from an interactor. "Interactor" is the instigating component. 
+	// UInteractableComponent::FocusLost is called by UInteractorComponent on the local client when focus is lost, which broadcasts this delegate.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnFocusLost OnFocusLost;
 	

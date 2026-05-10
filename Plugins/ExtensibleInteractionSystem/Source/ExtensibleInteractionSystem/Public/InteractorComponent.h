@@ -66,7 +66,7 @@ protected:
 	// Tracer
 	// ============================================================
 	
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
 	TObjectPtr<UInteractionTracer> InteractionTracer;
 	
 private:
