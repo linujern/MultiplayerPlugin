@@ -161,7 +161,7 @@ void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
-			LocalVisualHandler->HandleFocusGained(this, Interactor);
+			LocalVisualHandler->HandleFocusGained(this, Interactor, bCachedCanInteract, DeniedContext);
 }
 
 void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
@@ -399,10 +399,12 @@ void UInteractableComponent::Multicast_FocusGained_Implementation(UInteractorCom
 	
 	if(IsLocallyInstigated(Interactor))
 		return;
+
+	FInteractionDeniedContext DeniedContext = FInteractionDeniedContext();
 	
 	for (const auto& GlobalVisualHandler : GlobalVisualHandlers)
 		if(GlobalVisualHandler)
-			GlobalVisualHandler->HandleFocusGained(this, Interactor);
+			GlobalVisualHandler->HandleFocusGained(this, Interactor, IsInteractable(Interactor, DeniedContext), DeniedContext);
 }
 
 void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorComponent* Interactor)

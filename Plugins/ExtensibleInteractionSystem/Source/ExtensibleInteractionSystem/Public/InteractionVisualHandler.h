@@ -31,7 +31,8 @@ public:
 	
 	// Overwrite in blueprints or C++ to implement custom focus behavior. By default, just logs focus changes to demonstrate functionality.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionFocusHandler")
-	void HandleFocusGained(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
+	void HandleFocusGained(UInteractableComponent* Interactable, UInteractorComponent* Interactor,
+		bool bCanInteract, const FInteractionDeniedContext& Context);
 	// Overwrite in blueprints or C++ to implement custom focus behavior. By default, just logs focus changes to demonstrate functionality.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionFocusHandler")
 	void HandleFocusLost(UInteractableComponent* Interactable, UInteractorComponent* Interactor);

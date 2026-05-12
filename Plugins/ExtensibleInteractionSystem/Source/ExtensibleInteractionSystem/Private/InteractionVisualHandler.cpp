@@ -3,7 +3,7 @@
 #include "InteractionDeniedContext.h"
 
 void UInteractionVisualHandler::HandleFocusGained_Implementation
-(UInteractableComponent* Interactable, UInteractorComponent* Interactor) {}
+(UInteractableComponent* Interactable, UInteractorComponent* Interactor, bool bCanInteract, const FInteractionDeniedContext& Context) {}
 void UInteractionVisualHandler::HandleFocusLost_Implementation
 (UInteractableComponent* Interactable, UInteractorComponent* Interactor) {}
 
