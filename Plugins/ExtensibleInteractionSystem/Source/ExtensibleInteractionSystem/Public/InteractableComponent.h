@@ -184,12 +184,12 @@ protected:
 	// If no classes are set, the project default from UInteractionSettings is used.
 	// ============================================================
 
-	// The classes which dictate behaviour related to the focus/interaction state of this component, as seen by the local player.
+	// The classes which dictate standardized visual-only behaviour related to the focus/interaction state of this component, as seen by the local player.
 	// (such as highlighting a focused object or showing a widget).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionVisualHandler>> LocalVisualHandlers;
 
-	// The classes which dictate behaviour related to the focus/interaction state of this component, as seen by *ALL* players.
+	// The classes which dictate standardized visual-only behaviour related to the focus/interaction state of this component, as seen by *ALL* players.
 	// (such as a world-space widget appearing above the object when focused or when interacted with).
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionVisualHandler>> GlobalVisualHandlers;
