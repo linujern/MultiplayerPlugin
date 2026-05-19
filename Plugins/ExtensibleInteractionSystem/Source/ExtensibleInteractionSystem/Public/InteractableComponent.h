@@ -62,6 +62,7 @@ UCLASS(Blueprintable, ClassGroup=(Interaction), meta=(BlueprintSpawnableComponen
 class EXTENSIBLEINTERACTIONSYSTEM_API UInteractableComponent : public UActorComponent
 {
 	GENERATED_BODY()
+	friend UInteractorComponent;
 
 public:	
 	UInteractableComponent();
@@ -124,8 +125,7 @@ public:
 
 	// ============================================================
 	// Delegates
-	// Broadcast on all clients via OnRep (Begin), or NetMulticast (Finish, Cancel).
-	// Focus delegates broadcast locally only
+	// Broadcast on all clients via NetMulticast when interactions occur, and locally when focus events occur.
 	// ============================================================
 
 	// Broadcast by the server when an interaction begins. "Interactor" is the instigating component. 
@@ -144,11 +144,11 @@ public:
 	FOnCancelInteract OnCancelInteraction;
 
 	// Broadcast by the server when an interaction update happens. "Interactor" is the instigating component.
-	// Multicast_OnInteractionProgressUpdate is called by Server_NotifyProgress.
+	// Multicast_UpdateProgress is called by Server_NotifyProgress.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnUpdateProgress OnUpdateProgress;
 
-	// Broadcast by the server when 
+	// Broadcast via EvaluateInteractionGates when an interactor is denied interaction by the ruleset or regulation handler. "Interactor" is the instigating component.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnInteractionDenied OnInteractionDenied;
 
@@ -225,8 +225,8 @@ private:
 	UPROPERTY(Replicated)
 	EInteractionState InteractState = EInteractionState::Idle;
 
-	// Replicated so clients receiving OnRep_InteractState can identify the interactor.
-	// Must be set before InteractState to avoid a null interactor on the broadcast.
+	// Replicated so clients can identify the interactor. Note that this only tracks the current interactors, so it won't update on finished or cancelled interactions.
+	// These transient events are instead delivered via NetMulticastRPCs to ensure they are received even if the interaction state changes back to idle immediately after.
 	UPROPERTY(Replicated)
 	TArray<TObjectPtr<UInteractorComponent>> CurrentInteractors;
 
@@ -239,7 +239,6 @@ private:
 	// Helpers
 	// ============================================================
 
-	UFUNCTION()
 	static bool IsLocallyInstigated(const UInteractorComponent* Interactor);
 	
 	// ============================================================
@@ -260,7 +259,6 @@ private:
 	UFUNCTION(NetMulticast, Reliable)
 	void Multicast_OnInteractionCancelled(UInteractorComponent* Interactor, float ProgressPercent);
 	
-public:
 	// Called by UInteractorComponent::Server_NotifyFocusGained
 	// Unreliable since focus can change frequently and missed packages are harmless
 	UFUNCTION(NetMulticast, Unreliable)
