@@ -30,45 +30,45 @@ public:
 	// ============================================================
 	
 	// Overwrite in blueprints or C++ to implement custom focus behavior. By default, just logs focus changes to demonstrate functionality.
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionFocusHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleFocusGained(UInteractableComponent* Interactable, UInteractorComponent* Interactor,
 		bool bCanInteract, const FInteractionDeniedContext& Context);
 	// Overwrite in blueprints or C++ to implement custom focus behavior. By default, just logs focus changes to demonstrate functionality.
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionFocusHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleFocusLost(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 
 	// ============================================================
 	// Interaction Events
 	// ============================================================
 	
-	// Overwrite in blueprints or C++ to implement custom behaviour when an interactor's interaction progress is updated.
-	// ProgressPercent is a value between 0 and 1 representing the completion percentage of the interaction.
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
-	void HandleProgressUpdate(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent);
 	// Overwrite in blueprints or C++ to implement custom behaviour when an interactor's interaction progress is started.
 	// ProgressPercent is a value between 0 and 1 representing the completion percentage of the interaction at time of start (typically 0).
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleInteractionStart(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent);
 	// Overwrite in blueprints or C++ to implement custom behaviour when an interactor's interaction progress is finished.
 	// ProgressPercent is a value between 0 and 1 representing the completion percentage of the interaction at time of finish (typically 1).
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleInteractionFinished(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent);
 	// Overwrite in blueprints or C++ to implement custom behaviour when an interactor's interaction progress is cancelled.
 	// ProgressPercent is a value between 0 and 1 representing the completion percentage of the interaction at the time of cancellation. 
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleInteractionCancelled(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent);
+	// Overwrite in blueprints or C++ to implement custom behaviour when an interactor's interaction progress is updated.
+	// ProgressPercent is a value between 0 and 1 representing the completion percentage of the interaction.
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
+	void HandleProgressUpdate(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float ProgressPercent);
 
 	// ============================================================
 	// State change
 	// ============================================================
 
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleInteractionStateChanged(UInteractableComponent* Interactable, UInteractorComponent* Interactor, bool bCanBeFocused, bool bCanInteract, const FInteractionDeniedContext& Context);
 	
 	// ============================================================
 	// Denied
 	// ============================================================
 
-	UFUNCTION(BlueprintNativeEvent, Category = "InteractionProgressHandler")
+	UFUNCTION(BlueprintNativeEvent, Category = "Interaction|VisualHandler")
 	void HandleInteractionDenied(UInteractableComponent* Interactable, UInteractorComponent* Interactor, const FInteractionDeniedContext& Context);
 };
