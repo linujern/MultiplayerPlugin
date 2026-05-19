@@ -137,9 +137,9 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
 
-	UInteractionRegulationHandler* RegulationHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (RegulationHandler)
-		RegulationHandler->OwnerInteractCancel(this, Interactor);
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (RegHandler)
+		RegHandler->OwnerInteractCancel(this, Interactor);
 
 	for (const auto& LocalVisualHandler : LocalVisualHandlers)
 		if (LocalVisualHandler)
