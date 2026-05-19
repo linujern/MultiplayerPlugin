@@ -144,7 +144,7 @@ private:
 	// Delegate Callbacks
 	// Bound to the interactable's delegates in StartInteracting.
 	// Must be FUNCTION for dynamic multicast binding.
-	// EAch checks Interactor == this to ignore events from other interactors.
+	// Each checks Interactor == this to ignore events from other interactors.
 	// ============================================================
 	
 	UFUNCTION()
