@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0",
+	"VersionName": "1.0.0",
 	"FriendlyName": "ExtensibleInteractionSystem",
-	"Description": "",
+	"Description": "A modular multiplayer interaction system for Unreal Engine 5",
 	"Category": "Other",
 	"CreatedBy": "Lyens",
 	"CreatedByURL": "",
@@ -11,8 +11,8 @@
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"CanContainContent": true,
-	"IsBetaVersion": false,
-	"IsExperimentalVersion": false,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": true,
 	"Installed": false,
 	"Modules": [
 		{
