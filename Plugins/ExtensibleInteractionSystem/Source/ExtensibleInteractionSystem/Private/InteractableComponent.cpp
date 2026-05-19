@@ -47,7 +47,10 @@ void UInteractableComponent::BeginPlay()
 	// DefaultRegulationHandler
 	if (!RegulationHandler && Settings)
 		if (auto Default = Settings->GetDefaultRegulationHandlerClass())
-			RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
+		{
+			RegulationHandler = NewObject<UInteractionRegulationHandler>(GetOwner(), Default);
+			RegulationHandler->RegisterComponent();
+		}
 }
 
 void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -109,9 +112,9 @@ void UInteractableComponent::BeginInteraction(UInteractorComponent* Interactor, 
 	CurrentInteractors.AddUnique(Interactor);
 	if(CurrentInteractors.Num() == 1)
 		InteractState = EInteractionState::Interacting;
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (Handler)
-		Handler->OwnerInteractStart(this, Interactor);
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (RegHandler)
+		RegHandler->OwnerInteractStart(this, Interactor);
 	
 	Multicast_OnInteractionBegun(Interactor, ProgressPercent);
 }
@@ -123,9 +126,9 @@ void UInteractableComponent::FinishInteraction(UInteractorComponent* Interactor,
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
 
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (Handler)
-		Handler->OwnerInteractFinish(this, Interactor);
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (RegHandler)
+		RegHandler->OwnerInteractFinish(this, Interactor);
 	
 	Multicast_OnInteractionFinished(Interactor, ProgressPercent);
 }
@@ -140,10 +143,6 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
 	if (RegHandler)
 		RegHandler->OwnerInteractCancel(this, Interactor);
-
-	for (const auto& LocalVisualHandler : LocalVisualHandlers)
-		if (LocalVisualHandler)
-			LocalVisualHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 	
 	Multicast_OnInteractionCancelled(Interactor, ProgressPercent);
 }
@@ -156,15 +155,15 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 void UInteractableComponent::FocusGained(UInteractorComponent* Interactor)
 {
 	UE_LOG(LogInteract, VeryVerbose, TEXT
-		("UInteractableComponent::FocusLost called on %s via %s"),
+		("UInteractableComponent::FocusGained called on %s via %s"),
 		*GetOwner()->GetName(), *Interactor->GetOwner()->GetName());
 	
 	// Enable tick only while focused — no wasted evaluation otherwise
 	SetComponentTickEnabled(true);
 
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (Handler)
-		Handler->OwnerFocusGained(this, Interactor);
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (RegHandler)
+		RegHandler->OwnerFocusGained(this, Interactor);
 
 	FInteractionDeniedContext DeniedContext = FInteractionDeniedContext();
 	
@@ -188,9 +187,9 @@ void UInteractableComponent::FocusLost(UInteractorComponent* Interactor)
 	
 	SetComponentTickEnabled(false);
 
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (Handler)
-		Handler->OwnerFocusLost(this, Interactor);
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (RegHandler)
+		RegHandler->OwnerFocusLost(this, Interactor);
 
 	CachedLocalFocusInteractor = nullptr;
 	
@@ -285,12 +284,12 @@ bool UInteractableComponent::IsFocusable(UInteractorComponent* Interactor, FInte
 		return false;
 	}
 
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (IsValid(Handler))
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (IsValid(RegHandler))
 	{
-		if (!Handler->CanBeFocused_Global(this, Interactor, OutDeniedContext))
+		if (!RegHandler->CanBeFocused_Global(this, Interactor, OutDeniedContext))
 			return false;
-		if (!Handler->CanBeFocused_Local(this, Interactor, OutDeniedContext))
+		if (!RegHandler->CanBeFocused_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
 	return true;
@@ -305,13 +304,13 @@ bool UInteractableComponent::IsInteractable(UInteractorComponent* Interactor, FI
 	if(Ruleset && Ruleset->bDisableInteraction)
 		return false;
 
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if(IsValid(Handler))
+	UInteractionRegulationHandler* RegHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if(IsValid(RegHandler))
 	{
-		if(!Handler->CanInteract_Global(this, Interactor, OutDeniedContext))
+		if(!RegHandler->CanInteract_Global(this, Interactor, OutDeniedContext))
 			return false;
 
-		if(!Handler->CanInteract_Local(this, Interactor, OutDeniedContext))
+		if(!RegHandler->CanInteract_Local(this, Interactor, OutDeniedContext))
 			return false;
 	}
 	return true;
@@ -328,12 +327,12 @@ bool UInteractableComponent::EvaluateInteractionGates(UInteractorComponent* Inte
 			FText::FromString("Cannot interact"), this);
 		bAllowed = false;
 	}
-	else if (UInteractionRegulationHandler* Handler =
+	else if (UInteractionRegulationHandler* RegHandler =
 		GetOwner()->FindComponentByClass<UInteractionRegulationHandler>())
 	{
-		if (!Handler->CanInteract_Global(this, Interactor, OutContext))
+		if (!RegHandler->CanInteract_Global(this, Interactor, OutContext))
 			bAllowed = false;
-		else if (!Handler->CanInteract_Local(this, Interactor, OutContext))
+		else if (!RegHandler->CanInteract_Local(this, Interactor, OutContext))
 			bAllowed = false;
 	}
 	
