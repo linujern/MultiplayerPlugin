@@ -66,7 +66,7 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionRegulationHandler|Notifies")
 	void OwnerFocusLost(UInteractableComponent* Interactable, UInteractorComponent* Interactor);
 
-	// Overwrite in blueprints or C++ to implement custom behaviour for this handler when focus is lost.
+	// Overwrite in blueprints or C++ to implement custom behaviour for this handler when progress updates.
 	UFUNCTION(BlueprintNativeEvent, Category = "InteractionRegulationHandler|Notifies")
 	void OwnerInteractProgress(UInteractableComponent* Interactable, UInteractorComponent* Interactor, float Progress);
 	
