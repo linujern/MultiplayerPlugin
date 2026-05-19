@@ -45,9 +45,9 @@ void UInteractableComponent::BeginPlay()
 			GlobalVisualHandlers.Add(NewObject<UInteractionVisualHandler>(this, Default));
 	
 	// DefaultRegulationHandler
-	//if (!RegulationHandler && Settings)
-	//	if (auto Default = Settings->GetDefaultRegulationHandlerClass())
-	//		RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
+	if (!RegulationHandler && Settings)
+		if (auto Default = Settings->GetDefaultRegulationHandlerClass())
+			RegulationHandler = NewObject<UInteractionRegulationHandler>(this, Default);
 }
 
 void UInteractableComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -71,18 +71,30 @@ void UInteractableComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	
 	const bool bNewCanFocus = IsFocusable(CachedLocalFocusInteractor, FocusContext);
 	const bool bNewCanInteract = IsInteractable(CachedLocalFocusInteractor, InteractContext);
-
+	
 	if(bNewCanFocus != bCachedCanFocus)
 	{
 		bCachedCanFocus = bNewCanFocus;
 		for (auto& LocalVisualHandler : LocalVisualHandlers)
-			LocalVisualHandler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract, FocusContext);
+			if(LocalVisualHandler)
+				LocalVisualHandler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract, FocusContext);
 	}
-	if(bNewCanInteract != bCachedCanInteract)
+	
+	if (bNewCanInteract != bCachedCanInteract)
 	{
 		bCachedCanInteract = bNewCanInteract;
+
 		for (auto& LocalVisualHandler : LocalVisualHandlers)
-			LocalVisualHandler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract, InteractContext);
+			if(LocalVisualHandler)
+				LocalVisualHandler->HandleInteractionStateChanged(this, CachedLocalFocusInteractor, bNewCanFocus, bNewCanInteract, InteractContext);
+
+		if (!bNewCanInteract)
+		{
+			const UInteractionRuleset* Ruleset = GetRuleset();
+			if (Ruleset && Ruleset->bCancelOnInteractabilityLost)
+				if (IsValid(CachedLocalFocusInteractor))
+					CachedLocalFocusInteractor->RequestCancelInteraction(this);
+		}
 	}
 }
 
@@ -125,9 +137,13 @@ void UInteractableComponent::CancelInteraction(UInteractorComponent* Interactor,
 	if(CurrentInteractors.IsEmpty())
 		InteractState = EInteractionState::Idle;
 
-	UInteractionRegulationHandler* Handler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
-	if (Handler)
-		Handler->OwnerInteractCancel(this, Interactor);
+	UInteractionRegulationHandler* RegulationHandler = GetOwner()->FindComponentByClass<UInteractionRegulationHandler>();
+	if (RegulationHandler)
+		RegulationHandler->OwnerInteractCancel(this, Interactor);
+
+	for (const auto& LocalVisualHandler : LocalVisualHandlers)
+		if (LocalVisualHandler)
+			LocalVisualHandler->HandleInteractionCancelled(this, Interactor, ProgressPercent);
 	
 	Multicast_OnInteractionCancelled(Interactor, ProgressPercent);
 }
@@ -320,10 +336,16 @@ bool UInteractableComponent::EvaluateInteractionGates(UInteractorComponent* Inte
 		else if (!Handler->CanInteract_Local(this, Interactor, OutContext))
 			bAllowed = false;
 	}
+	
+	if (!bAllowed)
+	{
+		if (bNotifyDisplayHandlers)
+			for (auto& LocalVisualHandler : LocalVisualHandlers)
+				if (LocalVisualHandler)
+					LocalVisualHandler->HandleInteractionDenied(this, Interactor, OutContext);
 
-	if (bNotifyDisplayHandlers && !bAllowed)
-		for (auto& LocalVisualHandler : LocalVisualHandlers)
-			LocalVisualHandler->HandleInteractionDenied(this, Interactor, OutContext);
+		OnInteractionDenied.Broadcast(Interactor, OutContext);
+	}
 
 	UE_LOG(LogInteract, Verbose, TEXT
 		("EvaluateInteractionGates called on %s via %s. Allowed: %s. Reason: %s"),
@@ -424,6 +446,8 @@ void UInteractableComponent::Multicast_FocusLost_Implementation(UInteractorCompo
 
 void UInteractableComponent::Multicast_UpdateProgress_Implementation(UInteractorComponent* Interactor, const float ProgressPercent)
 {
+	OnUpdateProgress.Broadcast(Interactor, ProgressPercent);
+	
 	UE_LOG(LogInteract, Verbose, TEXT
 		("Multicast_UpdateProgress called on %s via %s"),
 		*GetOwner()->GetName(),

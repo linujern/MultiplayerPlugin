@@ -279,6 +279,15 @@ void UInteractorComponent::ResetInteractionState()
 	UE_LOG(LogInteract, Verbose, TEXT("ResetInteractionState called on %s"), *GetOwner()->GetName());
 }
 
+void UInteractorComponent::RequestCancelInteraction(UInteractableComponent* Source)
+{
+	if (CurrentInteractingWith == Source)
+	{
+		bIsDraining = false;
+		Server_CancelInteraction(InteractionProgress);
+	}
+}
+
 // ============================================================
 // DELEGATE CALLBACKS
 // Bound to the target interactable's delegates in StartInteracting.

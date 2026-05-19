@@ -60,6 +60,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Interaction")
 	void StopInteracting();
 
+	// ============================================================
+	// Interaction Cancellation
+	// ============================================================
+
+	// Called by InteractableComponent when interaction cannot continue.
+	void RequestCancelInteraction(UInteractableComponent* Source);
+
 protected:
 
 	// ============================================================
@@ -101,14 +108,20 @@ private:
 	// ============================================================
 	// Local Logic
 	// ============================================================
-	
+
+	// Calls the InteractionTracer's FindBestInteractable function every tick.
 	void TickTrace();
+	// Detects when the focused interactable has changed and calls the appropriate focus gained/lost functions.
 	void UpdateCurrentFocusedInteractable(UInteractableComponent* NewFocused);
+	
 	void AdvanceTimer(float DeltaTime);
 	void DrainTimer(float DeltaTime);
 	void TimerUpdate(float AddedValue, float UpdateThreshold);
+	// Calls Server_RequestFinishInteraction and resets local timer state. Called when the hold timer completes.
 	void SubmitInteraction();
+	// Unbinds callback delegates from the target interactable.
 	void UnbindDelegatesFrom(UInteractableComponent* Target);
+	// Resets Interactable pointers, bDraining and Progress floats.
 	void ResetInteractionState();
 
 	// ============================================================

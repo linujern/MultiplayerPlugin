@@ -29,11 +29,13 @@ enum class EInteractionState : uint8
 // ============================================================
 
 // All delegates pass the instigating UInteractorComponent so listeners can apply player-specific logic without needing to query the component separately.
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBeginInteract,	UInteractorComponent*, Interactor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFinishInteract,	UInteractorComponent*, Interactor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCancelInteract,	UInteractorComponent*, Interactor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusGained,		UInteractorComponent*, Interactor);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFocusLost,		UInteractorComponent*, Interactor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam	(FOnBeginInteract,		UInteractorComponent*, Interactor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam	(FOnFinishInteract,		UInteractorComponent*, Interactor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam	(FOnCancelInteract,		UInteractorComponent*, Interactor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnUpdateProgress,		UInteractorComponent*, Interactor, float, ProgressPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnInteractionDenied,	UInteractorComponent*, Interactor, const FInteractionDeniedContext&, DeniedContext); 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam	(FOnFocusGained,		UInteractorComponent*, Interactor);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam	(FOnFocusLost,			UInteractorComponent*, Interactor);
 
 
 // ============================================================
@@ -140,6 +142,15 @@ public:
 	// Multicast_OnInteractionCancelled is called by CancelInteraction, which replicates to all clients via NetMulticast and broadcasts this delegate on each client.
 	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
 	FOnCancelInteract OnCancelInteraction;
+
+	// Broadcast by the server when an interaction update happens. "Interactor" is the instigating component.
+	// Multicast_OnInteractionProgressUpdate is called by Server_NotifyProgress.
+	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
+	FOnUpdateProgress OnUpdateProgress;
+
+	// Broadcast by the server when 
+	UPROPERTY(BlueprintAssignable, Category = "InteractionSystem")
+	FOnInteractionDenied OnInteractionDenied;
 
 	// Broadcast locally when this interactable gains focus from an interactor. "Interactor" is the instigating component. 
 	// UInteractableComponent::FocusGained is called by UInteractorComponent on the local client when focus is detected, which broadcasts this delegate.
