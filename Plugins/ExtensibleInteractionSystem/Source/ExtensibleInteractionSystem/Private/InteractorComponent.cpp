@@ -161,21 +161,22 @@ void UInteractorComponent::UpdateCurrentFocusedInteractable(UInteractableCompone
 	// Reset interaction when focus is lost.
 	if(IsValid(PendingInteractable) && !IsValid(CurrentInteractingWith))
 	{
-		UnbindDelegatesFrom(PendingInteractable);
-		PendingInteractable = nullptr;
-		Server_CancelInteraction(InteractionProgress);
 		UE_LOG(LogInteract, VeryVerbose, TEXT
 			("Focus changed while waiting for server confirmation of interaction. Cancelled pending interaction with: %s"),
 			*PendingInteractable->GetName());
+		
+		UnbindDelegatesFrom(PendingInteractable);
+		PendingInteractable = nullptr;
+		Server_CancelInteraction(InteractionProgress);
 	}
 	else if(IsValid(CurrentInteractingWith))
 	{
-		bIsDraining = false;
-		Server_CancelInteraction(InteractionProgress);
 		UE_LOG(LogInteract, VeryVerbose, TEXT
 			("Focus changed while interacting. Cancelled interaction with: %s"),
 			*CurrentInteractingWith->GetName());
 		
+		bIsDraining = false;
+		Server_CancelInteraction(InteractionProgress);
 	}
 	// The old focused interactable is now fully handled.
 
