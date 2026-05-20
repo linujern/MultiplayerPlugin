@@ -473,3 +473,104 @@ bool UInteractableComponent::IsLocallyInstigated(const UInteractorComponent* Int
 	
 	return OwningPawn && OwningPawn->IsLocallyControlled();
 }
+
+// ============================================================
+// Setters
+// ============================================================
+
+void UInteractableComponent::SetLocalVisualHandlers(const TArray<TSubclassOf<UInteractionVisualHandler>>& NewVisualHandlers)
+{
+	LocalVisualHandlers.Empty(NewVisualHandlers.Num());
+
+	for (const TSubclassOf<UInteractionVisualHandler>& HandlerClass : NewVisualHandlers)
+	{
+		if (!HandlerClass)
+			continue;
+		LocalVisualHandlers.Add(NewObject<UInteractionVisualHandler>(this, HandlerClass));
+	}
+}
+
+UInteractionVisualHandler* UInteractableComponent::AddLocalVisualHandler(TSubclassOf<UInteractionVisualHandler> VisualHandlerToAdd)
+{
+	if (!VisualHandlerToAdd)
+		return nullptr;
+
+	UInteractionVisualHandler* NewHandler = NewObject<UInteractionVisualHandler>(this, VisualHandlerToAdd);
+	LocalVisualHandlers.Add(NewHandler);
+	return NewHandler;
+}
+
+bool UInteractableComponent::RemoveLocalVisualHandler(UInteractionVisualHandler* VisualHandlerToRemove)
+{
+	if (!VisualHandlerToRemove)
+		return false;
+
+	return LocalVisualHandlers.Remove(VisualHandlerToRemove) > 0;
+}
+
+bool UInteractableComponent::RemoveLocalVisualHandlerAt(const int Index)
+{
+	if (!LocalVisualHandlers.IsValidIndex(Index))
+		return false;
+
+	LocalVisualHandlers.RemoveAt(Index);
+	return true;
+}
+
+void UInteractableComponent::SetGlobalVisualHandlers(const TArray<TSubclassOf<UInteractionVisualHandler>>& NewVisualHandlers)
+{
+	LocalVisualHandlers.Empty(NewVisualHandlers.Num());
+
+	for (const TSubclassOf<UInteractionVisualHandler>& HandlerClass : NewVisualHandlers)
+	{
+		if (!HandlerClass)
+			continue;
+		LocalVisualHandlers.Add(NewObject<UInteractionVisualHandler>(this, HandlerClass));
+	}
+}
+
+UInteractionVisualHandler* UInteractableComponent::AddGlobalVisualHandler(TSubclassOf<UInteractionVisualHandler> VisualHandlerToAdd)
+{
+	if (!VisualHandlerToAdd)
+		return nullptr;
+
+	UInteractionVisualHandler* NewHandler = NewObject<UInteractionVisualHandler>(this, VisualHandlerToAdd);
+	LocalVisualHandlers.Add(NewHandler);
+	return NewHandler;
+}
+
+bool UInteractableComponent::RemoveGlobalVisualHandler(UInteractionVisualHandler* VisualHandlerToRemove)
+{
+	if (!VisualHandlerToRemove)
+		return false;
+
+	return LocalVisualHandlers.Remove(VisualHandlerToRemove) > 0;
+}
+
+bool UInteractableComponent::RemoveGlobalVisualHandlerAt(const int Index)
+{
+	if (!LocalVisualHandlers.IsValidIndex(Index))
+		return false;
+
+	LocalVisualHandlers.RemoveAt(Index);
+	return true;
+}
+
+void UInteractableComponent::SetRegulationHandler(const TSubclassOf<UInteractionRegulationHandler>& NewRegulationHandler)
+{
+	if (!NewRegulationHandler)
+	{
+		if (RegulationHandler)
+		{
+			RegulationHandler->DestroyComponent();
+			RegulationHandler = nullptr;
+		}
+		return;
+	}
+
+	if (RegulationHandler)
+		RegulationHandler->DestroyComponent();
+
+	RegulationHandler = NewObject<UInteractionRegulationHandler>(GetOwner(), NewRegulationHandler);
+	RegulationHandler->RegisterComponent();
+}

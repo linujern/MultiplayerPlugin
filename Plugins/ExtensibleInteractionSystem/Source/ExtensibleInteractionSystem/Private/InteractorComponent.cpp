@@ -434,3 +434,18 @@ void UInteractorComponent::Client_InteractionRejected_Implementation()
 	UnbindDelegatesFrom(CurrentInteractingWith);
 	ResetInteractionState();
 }
+
+// ============================================================
+// Setter
+// ============================================================
+
+UInteractionTracer* UInteractorComponent::SetTracerClass(TSubclassOf<UInteractionTracer> TracerClass)
+{
+	if (!TracerClass)
+	{
+		InteractionTracer = nullptr;
+		return nullptr;
+	}
+	InteractionTracer = NewObject<UInteractionTracer>(this, TracerClass);
+	return InteractionTracer;
+}

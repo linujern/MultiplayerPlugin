@@ -73,8 +73,17 @@ protected:
 	// Tracer
 	// ============================================================
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
 	TObjectPtr<UInteractionTracer> InteractionTracer;
+
+public:
+	// Set the Tracer class used by this interactor component.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	UInteractionTracer* SetTracerClass(TSubclassOf<UInteractionTracer> TracerClass);
+
+	// Get the Tracer class used by this interactor component.
+	UFUNCTION(BlueprintPure, Category = "Interaction")
+	UInteractionTracer* GetTracer() const { return InteractionTracer; }
 	
 private:
 

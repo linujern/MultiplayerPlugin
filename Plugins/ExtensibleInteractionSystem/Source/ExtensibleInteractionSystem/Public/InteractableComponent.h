@@ -71,6 +71,51 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+
+	// ============================================================
+	// Handler setters
+	// ============================================================
+
+	// Sets the Instanced Ruleset for this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void SetInstancedRuleset(UInteractionRuleset* NewRuleset) { InstanceRuleset = NewRuleset; }
+
+	// Sets the LocalVisualHandlers array used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction", meta = (DeterminesOutputType = "NewVisualHandlers"))
+	void SetLocalVisualHandlers(const TArray<TSubclassOf<UInteractionVisualHandler>>& NewVisualHandlers);
+	// Adds a VisualHandler to the LocalVisualHandlers array used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction", meta = (DeterminesOutputType = "VisualhandlerToAdd"))
+	UInteractionVisualHandler* AddLocalVisualHandler(TSubclassOf<UInteractionVisualHandler> VisualHandlerToAdd);
+	// Removes a VisualHandler by Reference from the LocalVisualHandlers array used by this interactable. Passes true if remove succeeds.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	bool RemoveLocalVisualHandler(UInteractionVisualHandler* VisualHandlerToRemove);
+	// Removes a VisualHandler by Index from the LocalVisualHandlers array used by this interactable. Passes true if remove succeeds.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	bool RemoveLocalVisualHandlerAt(const int Index);
+	// Removes all LocalVisualHandlers used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void ClearAllLocalVisualHandlers() { LocalVisualHandlers.Empty(); }
+	
+	// Sets the GlobalVisualHandlers array used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction", meta = (DeterminesOutputType = "NewVisualHandlers"))
+	void SetGlobalVisualHandlers(const TArray<TSubclassOf<UInteractionVisualHandler>>& NewVisualHandlers);
+	// Adds a VisualHandler to the GlobalVisualHandlers array used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction", meta = (DeterminesOutputType = "VisualHandlerToAdd"))
+	UInteractionVisualHandler* AddGlobalVisualHandler(TSubclassOf<UInteractionVisualHandler> VisualHandlerToAdd);
+	// Removes a VisualHandler from the GlobalVisualHandlers array used by this interactable. Passes true if remove succeeds.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	bool RemoveGlobalVisualHandler(UInteractionVisualHandler* VisualHandlerToRemove);
+	// Removes a VisualHandler by Index from the GlobalVisualHandlers array used by this interactable. Passes true if remove succeeds.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	bool RemoveGlobalVisualHandlerAt(const int Index);
+	// Removes all GlobalVisualHandlers used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction")
+	void ClearAllGlobalVisualHandlers() { GlobalVisualHandlers.Empty(); }
+
+	// Sets the RegulationHandler used by this interactable.
+	UFUNCTION(BlueprintCallable, Category = "Interaction", meta = (DeterminesOutputType = "NewRegulationHandler"))
+	void SetRegulationHandler(const TSubclassOf<UInteractionRegulationHandler>& NewRegulationHandler);
+	
 	// ============================================================
 	// Server-Side Entry Points
 	// Called by UInteractorComponent via its ServerRPCs. Must execute on the server.
@@ -169,7 +214,7 @@ protected:
 	// ============================================================
 
 	// Overrides the project default ruleset for this specific component instance. Leave empty to fall through to project default or CDO fallback.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
 	TObjectPtr<UInteractionRuleset> InstanceRuleset;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Interaction")
@@ -197,12 +242,12 @@ protected:
 
 	// The classes which dictate standardized visual-only behaviour related to the focus/interaction state of this component, as seen by the local player.
 	// (such as highlighting a focused object or showing a widget).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionVisualHandler>> LocalVisualHandlers;
 
 	// The classes which dictate standardized visual-only behaviour related to the focus/interaction state of this component, as seen by *ALL* players.
 	// (such as a world-space widget appearing above the object when focused or when interacted with).
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", Instanced)
 	TArray<TObjectPtr<UInteractionVisualHandler>> GlobalVisualHandlers;
 
 	// ============================================================
@@ -213,7 +258,7 @@ protected:
 	// Both of these have global (all players) and local (per-player) methods.
 	// ============================================================
 	
-	UPROPERTY(EditAnywhere, Category = "Interaction", Instanced)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", Instanced)
 	TObjectPtr<UInteractionRegulationHandler> RegulationHandler;
 
 private:
